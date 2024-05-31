@@ -5,7 +5,13 @@ description = "Add your description here"
 authors = [
     { name = "Jordan Delbar", email = "jordandelbar@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+    "polars>=0.20.30",
+    "loguru>=0.7.2",
+    "torch>=2.3.0",
+    "numpy>=1.26.4",
+    "scikit-learn>=1.5.0",
+]
 readme = "README.md"
 requires-python = ">= 3.8"
 
