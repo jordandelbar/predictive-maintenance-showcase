@@ -17,6 +17,7 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = [
     "pre-commit>=3.7.1",
+    "kaggle>=1.6.14",
 ]
 
 [tool.hatch.metadata]
