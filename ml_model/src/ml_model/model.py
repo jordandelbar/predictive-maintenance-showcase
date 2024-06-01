@@ -1,7 +1,9 @@
+from typing import Any, List, Tuple
 import torch
 import torch.nn as nn
 import numpy as np
 import polars as pl
+
 from torch.utils.data import DataLoader
 from sklearn.metrics import fbeta_score
 from loguru import logger
@@ -22,38 +24,16 @@ class AutoEncoder(nn.Module):
         self.max_tensor = torch.tensor(max_tensor, dtype=torch.float32)
         self.min_scaling_range = min_scaling_range
         self.max_scaling_range = max_scaling_range
-        self.first_encoder = nn.Sequential(
+        self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
         )
-        self.first_decoder = nn.Sequential(
+        self.decoder = nn.Sequential(
             nn.Linear(hidden_dim // 2, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, input_dim),
-        )
-        self.second_encoder = nn.Sequential(
-            nn.Linear(input_dim * 2, hidden_dim * 2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.ReLU(),
-        )
-        self.second_decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim * 2, input_dim * 2),
-        )
-        self.third_encoder = nn.Sequential(
-            nn.Linear(input_dim * 3, hidden_dim * 3),
-            nn.ReLU(),
-            nn.Linear(hidden_dim * 3, hidden_dim * 2),
-            nn.ReLU(),
-        )
-        self.third_decoder = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim * 3),
-            nn.ReLU(),
-            nn.Linear(hidden_dim * 3, input_dim),
         )
 
     def min_max_scaling(self, x):
@@ -65,13 +45,9 @@ class AutoEncoder(nn.Module):
         return x_scaled
 
     def forward(self, x):
-        x1 = self.first_encoder(x)
-        x1 = self.first_decoder(x1)
-        x2 = self.second_encoder(torch.cat((x, x1), dim=1))
-        x2 = self.second_decoder(x2)
-        x3 = self.third_encoder(torch.cat((x, x2), dim=1))
-        x3 = self.third_decoder(x3)
-        return x3
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
 
     def predict(self, input_data):
         input_data = self.min_max_scaling(input_data)
@@ -88,7 +64,7 @@ def train(
     criterion,
     device,
     epochs: int = 25,
-):
+) -> Tuple[Any, List[float]]:
     train_loader = DataLoader(x_ne_scaled, batch_size=50, shuffle=True)
 
     training_loss_list = list()
@@ -109,12 +85,12 @@ def train(
         if (epoch + 1) % 2 == 0:
             logger.info(f"Epoch: {epoch + 1}, train loss: {average_training_loss:.4f}")
 
-    return autoencoder
+    return autoencoder, training_loss_list
 
 
 def return_normal_events_sets(
     x_train: np.ndarray, y_train: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray]:
     temp_array = (
         pl.DataFrame(x_train)
         .with_columns(pl.Series(name="label", values=y_train))

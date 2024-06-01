@@ -3,6 +3,7 @@ from typing import Tuple
 
 import polars as pl
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -42,9 +43,14 @@ def preprocess_data(data: pl.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
     return x_array, y_array
 
 
-def split_data(x: np.ndarray, y: np.ndarray, test_size: float = 0.3):
+def split_data(
+    x: np.ndarray,
+    y: np.ndarray,
+    test_size: float = 0.3,
+    random_state: int = 42,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=test_size, stratify=y
+        x, y, test_size=test_size, stratify=y, random_state=random_state
     )
     logger.info(f"x train shape: {x_train.shape}")
     logger.info(f"x test shape: {x_test.shape}")
@@ -54,7 +60,7 @@ def split_data(x: np.ndarray, y: np.ndarray, test_size: float = 0.3):
 
 
 def train_model(
-    x_train: np.ndarray, y_train: np.ndarray
+    x_train: np.ndarray, y_train: np.ndarray, f_beta_score: float, epochs: int = 50
 ) -> Tuple[ml_model.AutoEncoder, float]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -63,13 +69,13 @@ def train_model(
     )
 
     scaler = MinMaxScaler()
-    scaler.fit(x_train)
+    scaler.fit(x_normal_events)
 
     # We use the Scikit-learn MinMaxScaler and instantiate our autoencoder with
     # the min and max features vectors
     autoencoder = ml_model.AutoEncoder(
         input_dim=5,
-        hidden_dim=20,
+        hidden_dim=10,
         min_tensor=scaler.data_min_,
         max_tensor=scaler.data_max_,
         min_scaling_range=0.0,
@@ -81,15 +87,19 @@ def train_model(
         torch.tensor(x_normal_events, dtype=torch.float32)
     )
 
-    model = ml_model.train(
+    model, training_loss_list = ml_model.train(
         x_ne_scaled=x_ne_scaled,
         optimizer=optimizer,
         autoencoder=autoencoder,
         criterion=criterion,
         device=device,
-        epochs=50,
+        epochs=epochs,
     )
-    best_threshold = ml_model.compute_best_threshold(x_train, y_train, model, 1.5)
+    plt.plot(range(len(training_loss_list)), training_loss_list)
+    plt.savefig("./output/training_loss.png")
+    best_threshold = ml_model.compute_best_threshold(
+        x_train, y_train, model, f_beta_score
+    )
     logger.info(f"{best_threshold=}")
     return model, best_threshold
 
