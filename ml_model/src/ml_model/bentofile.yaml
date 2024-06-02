@@ -1,0 +1,11 @@
+service: "service:svc"
+labels:
+  owner: jordan-delbar
+  project: predictive-maintenance
+include:
+  - "*.py"
+python:
+  packages:
+    - torch==2.3.0
+    - numpy==1.26.4
+    - pydantic==2.7.2

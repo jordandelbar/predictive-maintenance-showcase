@@ -11,7 +11,7 @@ from ml_model.train import train_model, evaluate_model
 
 def main():
     df = load_data("sensor")
-    df_train = clean_data_train(data=df, lower_quantile=0.05, upper_quantile=0.95)
+    df_train = clean_data_train(data=df, lower_quantile=0.01, upper_quantile=0.99)
     x, y = preprocess_data(data=df_train)
     model = train_model(x_train=x, y_train=y, epochs=100)
     df_eval = clean_data_evaluate(data=df)

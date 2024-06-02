@@ -1,5 +1,6 @@
 from typing import Tuple, List
 
+import bentoml
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -72,13 +73,16 @@ def evaluate_model(
     reconstruction_errors = model.predict(x_test)
     logger.info(f"reconstruction errors: {reconstruction_errors}")
 
-    # saved_model = bentoml.pytorch.save_model(
-    #     "pm_autoencoder",
-    #     model,
-    #     signatures=signatures,
-    #     metadata=metadata,
-    #     external_modules=[ml_model],
-    # )
-    # logger.info(f"Model saved: {saved_model}")
+    # TODO: verify if it is batchable and the threshold
+    signatures = {"predict": {"batchable": True}}
+    metadata = {"best_threshold": 0.1}
+    saved_model = bentoml.pytorch.save_model(
+        "pm_autoencoder",
+        model,
+        signatures=signatures,
+        metadata=metadata,
+        external_modules=[ml_model],
+    )
+    logger.info(f"Model saved: {saved_model}")
 
     return reconstruction_errors.numpy()

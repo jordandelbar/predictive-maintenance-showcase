@@ -16,6 +16,8 @@ dependencies = [
     "notebook>=7.2.0",
     "pandas>=2.2.2",
     "pyarrow>=16.1.0",
+    "pydantic>=2.7.2",
+    "bentoml>=1.2.16",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

@@ -20,3 +20,7 @@ model/train:
 model/test:
 	@echo "Test"
 	@rye run pytest --cov=src tests/
+
+.PHONY: model/build
+model/build:
+	rye run bentoml build -f bentofile.yaml ./src/ml_model/
