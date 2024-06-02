@@ -42,6 +42,9 @@ class AutoEncoder(nn.Module):
             x_std * (self.max_scaling_range - self.min_scaling_range)
             + self.min_scaling_range
         )
+
+        # In case self.min_tensor and self.max_tensor contain same vector
+        x_scaled[torch.isnan(x_scaled)] = 0.0
         return x_scaled
 
     def forward(self, x):
@@ -57,15 +60,15 @@ class AutoEncoder(nn.Module):
             return error
 
 
-def train(
-    x_ne_scaled,
+def train_model(
+    x_train,
     optimizer,
     autoencoder,
     criterion,
     device,
     epochs: int = 25,
 ) -> Tuple[Any, List[float]]:
-    train_loader = DataLoader(x_ne_scaled, batch_size=50, shuffle=True)
+    train_loader = DataLoader(x_train, batch_size=50, shuffle=True)
 
     training_loss_list = list()
     for epoch in range(epochs):
@@ -86,19 +89,6 @@ def train(
             logger.info(f"Epoch: {epoch + 1}, train loss: {average_training_loss:.4f}")
 
     return autoencoder, training_loss_list
-
-
-def return_normal_events_sets(
-    x_train: np.ndarray, y_train: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
-    temp_array = (
-        pl.DataFrame(x_train)
-        .with_columns(pl.Series(name="label", values=y_train))
-        .filter(pl.col("label") == 0)
-        .to_numpy()
-    )
-
-    return temp_array[:, :-1], temp_array[:, -1]
 
 
 def compute_best_threshold(

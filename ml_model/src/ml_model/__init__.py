@@ -1,8 +1,6 @@
-from .model import AutoEncoder, compute_best_threshold, return_normal_events_sets, train
+from .model import AutoEncoder, train_model
 
 __all__ = [
     "AutoEncoder",
-    "compute_best_threshold",
-    "return_normal_events_sets",
-    "train",
+    "train_model",
 ]

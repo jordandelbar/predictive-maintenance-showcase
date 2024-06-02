@@ -1,14 +1,15 @@
-.PHONY: help
-help:
-	@echo 'Usage:'
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
-
-.PHONY: download/dataset
-download/dataset:
+.PHONY: dataset/download
+dataset/download:
 	@echo "Download dataset"
-	@rye run kaggle datasets download -p ../data/ -d stephanmatzka/predictive-maintenance-dataset-ai4i-2020
+	@rye run kaggle datasets download -p ../data/ -d nphantawee/pump-sensor-data
+
+.PHONY: dataset/unzip
+dataset/unzip:
 	@echo "Unzip dataset"
-	@unzip -o ../data/predictive-maintenance-dataset-ai4i-2020 -d ../data/
+	@unzip -o ../data/pump-sensor-data.zip -d ../data/
+
+.PHONY: dataset/all
+dataset/all: dataset/download dataset/unzip
 
 .PHONY: model/train
 model/train:
