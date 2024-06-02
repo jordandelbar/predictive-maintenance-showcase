@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ def split_data(
 
 
 def train_model(
-    x_train: np.ndarray, y_train: np.ndarray, f_beta_score: float, epochs: int = 50
+    x_train: np.ndarray, y_train: np.ndarray, epochs: int = 50
 ) -> ml_model.AutoEncoder:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -66,9 +66,8 @@ def train_model(
 
 def evaluate_model(
     x_test: np.ndarray,
-    y_test: np.ndarray,
     model: ml_model.AutoEncoder,
-) -> None:
+) -> List[float]:
     x_test = torch.tensor(x_test, dtype=torch.float32)
     reconstruction_errors = model.predict(x_test)
     logger.info(f"reconstruction errors: {reconstruction_errors}")
@@ -81,3 +80,5 @@ def evaluate_model(
     #     external_modules=[ml_model],
     # )
     # logger.info(f"Model saved: {saved_model}")
+
+    return reconstruction_errors.numpy()

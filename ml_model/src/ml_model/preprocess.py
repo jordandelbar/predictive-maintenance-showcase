@@ -79,13 +79,26 @@ def load_data(filename: str) -> pl.DataFrame:
     return data
 
 
-def clean_data(data: pl.DataFrame) -> pl.DataFrame:
-    data = data.filter(~pl.col("machine_status").is_in(["RECOVERING", "BROKEN"]))
+def clean_data_train(
+    data: pl.DataFrame, lower_quantile: float = 0.02, upper_quantile: float = 0.98
+) -> pl.DataFrame:
+    # Only taking NORMAL data
+    data = data.filter(pl.col("machine_status") == "NORMAL")
+    # Fill null with median data
     data = fill_nulls_with_median(data)
     if data.null_count().sum(axis=1)[0]:
         raise ValueError("There are still null values in the data")
-    quantiles = get_quantiles(data, 0.02, 0.98)
+    # Remove outliers
+    quantiles = get_quantiles(data, lower_quantile, upper_quantile)
     data = filter_by_quantiles(data, quantiles)
+    return data
+
+
+def clean_data_evaluate(data: pl.DataFrame) -> pl.DataFrame:
+    # Fill null with median data
+    data = fill_nulls_with_median(data)
+    if data.null_count().sum(axis=1)[0]:
+        raise ValueError("There are still null values in the data")
     return data
 
 
