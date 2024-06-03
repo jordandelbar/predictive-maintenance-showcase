@@ -104,7 +104,7 @@ def clean_data_evaluate(data: pl.DataFrame) -> pl.DataFrame:
 
 def preprocess_data(data: pl.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
     training_data = data.select(
-        [f"sensor_{str(x).zfill(2)}" for x in range(0, 52)] + ["machine_status"]
+        [f"sensor_{str(x).zfill(2)}" for x in range(52)] + ["machine_status"]
     )
     x_df = training_data.select(pl.exclude("machine_status"))
     y_df = training_data.select(pl.col("machine_status"))
