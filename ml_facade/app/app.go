@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "github.com/lib/pq"
 	"log/slog"
 	"ml_facade/config"
 	"ml_facade/internal/data"
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 const version = "0.0.1"
@@ -23,7 +24,6 @@ type application struct {
 }
 
 func StartApp(cfg config.Config) {
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	db, err := openDB(cfg)

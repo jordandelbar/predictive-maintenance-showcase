@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	var cfg config.Config
 
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
