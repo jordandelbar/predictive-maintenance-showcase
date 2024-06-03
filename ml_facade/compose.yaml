@@ -1,0 +1,10 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: monitoring_postgres
+    environment:
+      POSTGRES_USER: monitor
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: monitoring
+    ports:
+      - "5432:5432"
