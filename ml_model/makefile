@@ -11,16 +11,16 @@ dataset/unzip:
 .PHONY: dataset/all
 dataset/all: dataset/download dataset/unzip
 
-.PHONY: model/train
-model/train:
-	@echo "Train model"
-	@rye run python src/ml_model/main.py
-
 .PHONY: model/test
 model/test:
 	@echo "Test"
 	@rye run pytest --cov=src tests/
 
+.PHONY: model/train
+model/train:
+	@echo "Train model"
+	@rye run python src/ml_model/main.py
+
 .PHONY: model/build
 model/build:
-	rye run bentoml build -f bentofile.yaml ./src/ml_model/
+	rye run bentoml build --containerize -f bentofile.yaml ./src/ml_model/
