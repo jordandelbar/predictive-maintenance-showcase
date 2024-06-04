@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS monitoring (
     id bigserial PRIMARY KEY,
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
+    machine_id INTEGER,
     sensor_00 DECIMAL,
     sensor_01 DECIMAL,
     sensor_02 DECIMAL,
@@ -54,5 +55,6 @@ CREATE TABLE IF NOT EXISTS monitoring (
     sensor_50 DECIMAL,
     sensor_51 DECIMAL,
     sensor_52 DECIMAL,
-    reconstruction_error DECIMAL
+    reconstruction_error DECIMAL,
+    anomaly BOOLEAN
     );

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"ml_facade/config"
 	"ml_facade/internal/data"
@@ -33,6 +34,8 @@ func StartApp(cfg config.Config) {
 	}
 	defer db.Close()
 
+	rdb := redisDB(cfg)
+
 	transport := &http.Transport{
 		MaxIdleConns:        50,
 		IdleConnTimeout:     10 * time.Second,
@@ -46,7 +49,7 @@ func StartApp(cfg config.Config) {
 	app := &application{
 		config:        cfg,
 		logger:        logger,
-		models:        data.NewModels(db),
+		models:        data.NewModels(db, rdb),
 		mlModelClient: client,
 	}
 
@@ -85,4 +88,13 @@ func openDB(cfg config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func redisDB(cfg config.Config) *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+	return rdb
 }
