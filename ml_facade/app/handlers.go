@@ -31,9 +31,14 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Forward request to ML model service
 	reqBody := bytes.NewReader(body)
-	resp, err := app.mlModelClient.Post("http://localhost:3000/predict", "application/json", reqBody)
+	resp, err := app.mlService.Post(app.config.MlService.Uri+"/predict", "application/json", reqBody)
 	if err != nil {
 		app.logger.Error("error making POST request to model service: %v", err)
+		app.errorResponse(w, r, http.StatusInternalServerError, "error making POST request to model service")
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		app.logger.Error("wrong status code from model service: %v", resp.Status)
 		app.errorResponse(w, r, http.StatusInternalServerError, "error making POST request to model service")
 		return
 	}
@@ -47,10 +52,25 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	threshold, err := app.models.Threshold.Get(input.MachineID)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	var anomaly bool
+
+	if modelResponse.ReconstructionError > threshold {
+		anomaly = true
+	} else {
+		anomaly = false
+	}
+
 	// Merge responses
 	record := data.Record{
 		SensorData:    input,
 		ModelResponse: modelResponse,
+		Anomaly:       anomaly,
 	}
 
 	err = app.models.Sensor.Insert(&record)
@@ -64,6 +84,27 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 	headers.Set("test", "/v1/sensors/")
 	response := envelope{"reconstruction_error": record.ModelResponse.ReconstructionError}
 	err = app.writeJSON(w, http.StatusCreated, response)
+	if err != nil {
+		app.logger.Error("error writing JSON response: %v", err)
+	}
+}
+
+func (app *application) thresholdHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.Threshold
+
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		app.logger.Error("error decoding JSON from request body: %v", err)
+		app.errorResponse(w, r, http.StatusBadRequest, "invalid JSON in request body")
+		return
+	}
+
+	err = app.models.Threshold.Insert(input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	err = app.writeJSON(w, http.StatusCreated, envelope{"threshold": input.Threshold})
 	if err != nil {
 		app.logger.Error("error writing JSON response: %v", err)
 	}

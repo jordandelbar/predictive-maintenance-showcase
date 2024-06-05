@@ -63,9 +63,6 @@ class SensorData(BaseModel):
     sensor_50: float
     sensor_51: float
 
-    class Config:
-        extra = "forbid"
-
 
 class ModelOutput(BaseModel):
     reconstruction_error: float

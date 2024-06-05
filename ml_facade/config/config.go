@@ -11,4 +11,10 @@ type Config struct {
 		MaxIdleConns int
 		MaxIdleTime  time.Duration
 	}
+	Rdb struct {
+		Uri string
+	}
+	MlService struct {
+		Uri string
+	}
 }

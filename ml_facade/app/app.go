@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"ml_facade/config"
@@ -11,16 +12,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/gomodule/redigo/redis"
 	_ "github.com/lib/pq"
 )
 
 const version = "0.0.1"
 
 type application struct {
-	config        config.Config
-	logger        *slog.Logger
-	models        data.Models
-	mlModelClient http.Client
+	config    config.Config
+	logger    *slog.Logger
+	models    data.Models
+	mlService *http.Client
 }
 
 func StartApp(cfg config.Config) {
@@ -32,22 +34,29 @@ func StartApp(cfg config.Config) {
 		os.Exit(1)
 	}
 	defer db.Close()
+	logger.Info("postgresql database connection pool established")
 
-	transport := &http.Transport{
-		MaxIdleConns:        50,
-		IdleConnTimeout:     10 * time.Second,
-		MaxIdleConnsPerHost: 10,
+	rdb, err := redisDB(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
+	defer rdb.Close()
+	logger.Info("redis database connection pool established")
 
-	client := http.Client{Transport: transport, Timeout: time.Second * 10}
-
-	logger.Info("database connection pool established")
+	client, err := mlService(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	defer client.CloseIdleConnections()
+	logger.Info("ml service client successfully initialized")
 
 	app := &application{
-		config:        cfg,
-		logger:        logger,
-		models:        data.NewModels(db),
-		mlModelClient: client,
+		config:    cfg,
+		logger:    logger,
+		models:    data.NewModels(db, rdb),
+		mlService: client,
 	}
 
 	srv := &http.Server{
@@ -85,4 +94,43 @@ func openDB(cfg config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func redisDB(cfg config.Config) (*redis.Pool, error) {
+	rdb := &redis.Pool{
+		MaxIdle:     10,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", cfg.Rdb.Uri)
+		},
+	}
+	conn := rdb.Get()
+	defer conn.Close()
+
+	_, err := redis.String(conn.Do("PING"))
+	if err != nil {
+		return nil, err
+	}
+	return rdb, nil
+}
+
+func mlService(cfg config.Config) (*http.Client, error) {
+	ErrMlServiceNotRunning := errors.New("ml service is not healthy")
+
+	transport := &http.Transport{
+		MaxIdleConns:        50,
+		IdleConnTimeout:     10 * time.Second,
+		MaxIdleConnsPerHost: 10,
+	}
+
+	client := &http.Client{Transport: transport, Timeout: time.Second * 10}
+	resp, err := client.Get(cfg.MlService.Uri + "/healthz")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrMlServiceNotRunning
+	}
+
+	return client, nil
 }
