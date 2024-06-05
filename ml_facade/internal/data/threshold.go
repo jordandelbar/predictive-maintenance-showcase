@@ -1,30 +1,33 @@
 package data
 
 import (
-	"context"
-	"github.com/redis/go-redis/v9"
-	"strconv"
+	"fmt"
+	"github.com/gomodule/redigo/redis"
 )
 
 type Threshold struct {
-	MachineID int     `json:"machine_id"`
-	Threshold float64 `json:"threshold"`
+	MachineID int     `json:"machine_id" redis:"machine_id"`
+	Threshold float64 `json:"threshold" redis:"threshold"`
 }
 
 type ThresholdModel struct {
-	Rdb *redis.Client
+	Rdb *redis.Pool
 }
 
 func (t ThresholdModel) Insert(threshold Threshold) error {
-	var ctx = context.Background()
-
-	return t.Rdb.Set(ctx, strconv.Itoa(threshold.MachineID), threshold.Threshold, 0).Err()
+	conn := t.Rdb.Get()
+	_, err := conn.Do("HMSET", fmt.Sprintf("threshold:%v", threshold.MachineID), "threshold", threshold.Threshold)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (t ThresholdModel) Get(id int) (float64, error) {
-	var ctx = context.Background()
-
-	thresholdStr, err := t.Rdb.Get(ctx, strconv.Itoa(id)).Result()
-	threshold, err := strconv.ParseFloat(thresholdStr, 32)
-	return threshold, err
+	conn := t.Rdb.Get()
+	threshold, err := redis.Float64(conn.Do("HGETALL", fmt.Sprintf("threshold:%v", id)))
+	if err != nil {
+		return 0., err
+	}
+	return threshold, nil
 }

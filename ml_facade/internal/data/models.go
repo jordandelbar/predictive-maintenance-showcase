@@ -2,7 +2,7 @@ package data
 
 import (
 	"database/sql"
-	"github.com/redis/go-redis/v9"
+	"github.com/gomodule/redigo/redis"
 )
 
 type Models struct {
@@ -10,7 +10,7 @@ type Models struct {
 	Threshold ThresholdModel
 }
 
-func NewModels(db *sql.DB, rdb *redis.Client) Models {
+func NewModels(db *sql.DB, rdb *redis.Pool) Models {
 	return Models{
 		Sensor:    SensorModel{DB: db},
 		Threshold: ThresholdModel{Rdb: rdb},

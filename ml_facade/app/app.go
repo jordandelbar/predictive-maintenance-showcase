@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"ml_facade/config"
 	"ml_facade/internal/data"
@@ -12,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gomodule/redigo/redis"
 	_ "github.com/lib/pq"
 )
 
@@ -36,6 +36,8 @@ func StartApp(cfg config.Config) {
 
 	rdb := redisDB(cfg)
 
+	logger.Info("database connection pool established")
+
 	transport := &http.Transport{
 		MaxIdleConns:        50,
 		IdleConnTimeout:     10 * time.Second,
@@ -43,8 +45,6 @@ func StartApp(cfg config.Config) {
 	}
 
 	client := http.Client{Transport: transport, Timeout: time.Second * 10}
-
-	logger.Info("database connection pool established")
 
 	app := &application{
 		config:        cfg,
@@ -90,11 +90,13 @@ func openDB(cfg config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func redisDB(cfg config.Config) *redis.Client {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
+func redisDB(cfg config.Config) *redis.Pool {
+	rdb := &redis.Pool{
+		MaxIdle:     10,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", cfg.Rdb.Uri)
+		},
+	}
 	return rdb
 }
