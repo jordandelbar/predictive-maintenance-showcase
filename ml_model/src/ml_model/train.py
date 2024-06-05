@@ -85,4 +85,4 @@ def evaluate_model(
     )
     logger.info(f"Model saved: {saved_model}")
 
-    return reconstruction_errors.numpy()
+    return reconstruction_errors.detach().cpu().numpy()

@@ -80,7 +80,7 @@ def load_data(filename: str) -> pl.DataFrame:
 
 
 def clean_data_train(
-    data: pl.DataFrame, lower_quantile: float = 0.02, upper_quantile: float = 0.98
+    data: pl.DataFrame, lower_quantile: float = 0.01, upper_quantile: float = 0.99
 ) -> pl.DataFrame:
     # Only taking NORMAL data
     data = data.filter(pl.col("machine_status") == "NORMAL")

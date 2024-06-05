@@ -6,6 +6,6 @@ include:
   - "*.py"
 python:
   packages:
-    - torch==2.3.0
+    - torch==2.3.0 --index-url https://download.pytorch.org/whl/cpuu
     - numpy==1.26.4
     - pydantic==2.7.2
