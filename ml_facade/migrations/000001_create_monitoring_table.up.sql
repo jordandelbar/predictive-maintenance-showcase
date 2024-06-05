@@ -56,5 +56,6 @@ CREATE TABLE IF NOT EXISTS monitoring (
     sensor_51 DECIMAL,
     sensor_52 DECIMAL,
     reconstruction_error DECIMAL,
-    anomaly BOOLEAN
+    anomaly BOOLEAN,
+    anomaly_counter INTEGER
     );

@@ -59,18 +59,28 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var anomaly bool
+	var anomalyCounter int
 
 	if modelResponse.ReconstructionError > threshold {
 		anomaly = true
+		anomalyCounter, err = app.models.Threshold.Increment(input.MachineID)
+		if err != nil {
+			app.logger.Error("error incrementing model threshold counter: %v", err)
+		}
 	} else {
 		anomaly = false
+		anomalyCounter, err = app.models.Threshold.Decrement(input.MachineID)
+		if err != nil {
+			app.logger.Error("error decrementing model threshold counter: %v", err)
+		}
 	}
 
 	// Merge responses
 	record := data.Record{
-		SensorData:    input,
-		ModelResponse: modelResponse,
-		Anomaly:       anomaly,
+		SensorData:     input,
+		ModelResponse:  modelResponse,
+		Anomaly:        anomaly,
+		AnomalyCounter: anomalyCounter,
 	}
 
 	err = app.models.Sensor.Insert(&record)
@@ -82,7 +92,7 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 	// Write response
 	headers := make(http.Header)
 	headers.Set("test", "/v1/sensors/")
-	response := envelope{"reconstruction_error": record.ModelResponse.ReconstructionError}
+	response := envelope{"reconstruction_error": record.ModelResponse.ReconstructionError, "anomaly_counter": anomalyCounter}
 	err = app.writeJSON(w, http.StatusCreated, response)
 	if err != nil {
 		app.logger.Error("error writing JSON response: %v", err)
