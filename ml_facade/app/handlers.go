@@ -31,8 +31,7 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Forward request to ML model service
 	reqBody := bytes.NewReader(body)
-	// TODO: model service in config
-	resp, err := app.mlModelClient.Post("http://localhost:3000/predict", "application/json", reqBody)
+	resp, err := app.mlService.Post(app.config.MlService.Uri+"/predict", "application/json", reqBody)
 	if err != nil {
 		app.logger.Error("error making POST request to model service: %v", err)
 		app.errorResponse(w, r, http.StatusInternalServerError, "error making POST request to model service")

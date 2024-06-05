@@ -15,6 +15,7 @@ func main() {
 	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.Db.Dsn, "db-dsn", os.Getenv("MONITORING_DB_DSN"), "PostgreSQL DSN")
 	flag.StringVar(&cfg.Rdb.Uri, "rdb-uri", os.Getenv("REDIS_DB_URI"), "Redis URI")
+	flag.StringVar(&cfg.MlService.Uri, "ml-service-uri", os.Getenv("ML_SERVICE_URI"), "Redis URI")
 	flag.IntVar(&cfg.Db.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.Db.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.Db.MaxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")

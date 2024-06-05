@@ -14,4 +14,7 @@ type Config struct {
 	Rdb struct {
 		Uri string
 	}
+	MlService struct {
+		Uri string
+	}
 }
