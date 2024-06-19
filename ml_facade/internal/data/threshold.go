@@ -40,11 +40,23 @@ func (t ThresholdModel) Increment(id int) (int, error) {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 
-	counter, err := redis.Int(conn.Do("INCR", fmt.Sprintf("anomaly_counter:%v", id)))
+	currentCounter, err := redis.Int(conn.Do("GET", fmt.Sprintf("anomaly_counter:%v", id)))
 	if err != nil {
-		return 0, err
+		return 0, nil
 	}
-	return counter, nil
+
+	var anomalyCounter int
+
+	// Only increment if under 20
+	if currentCounter < 20 {
+		anomalyCounter, err = redis.Int(conn.Do("INCR", fmt.Sprintf("anomaly_counter:%v", id)))
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		anomalyCounter = currentCounter
+	}
+	return anomalyCounter, nil
 }
 
 func (t ThresholdModel) Decrement(id int) (int, error) {
@@ -58,6 +70,7 @@ func (t ThresholdModel) Decrement(id int) (int, error) {
 
 	var anomalyCounter int
 
+	// Only decrement if above 0
 	if currentCounter > 0 {
 		anomalyCounter, err = redis.Int(conn.Do("DECR", fmt.Sprintf("anomaly_counter:%v", id)))
 		if err != nil {
