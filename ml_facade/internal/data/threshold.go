@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -18,7 +19,14 @@ func (t ThresholdModel) Insert(threshold Threshold) error {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 
+	// Initialize the threshold value
 	_, err := conn.Do("SET", fmt.Sprintf("threshold:%v", threshold.MachineID), threshold.Threshold)
+	if err != nil {
+		return err
+	}
+
+	// Initialize the anomaly counter
+	_, err = conn.Do("SET", fmt.Sprintf("anomaly_counter:%v", threshold.MachineID), 0)
 	if err != nil {
 		return err
 	}
