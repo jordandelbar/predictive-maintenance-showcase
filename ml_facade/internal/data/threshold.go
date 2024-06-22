@@ -50,7 +50,7 @@ func (t ThresholdModel) Increment(id int) (int, error) {
 
 	currentCounter, err := redis.Int(conn.Do("GET", fmt.Sprintf("anomaly_counter:%v", id)))
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	var anomalyCounter int
@@ -73,7 +73,7 @@ func (t ThresholdModel) Decrement(id int) (int, error) {
 
 	currentCounter, err := redis.Int(conn.Do("GET", fmt.Sprintf("anomaly_counter:%v", id)))
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	var anomalyCounter int

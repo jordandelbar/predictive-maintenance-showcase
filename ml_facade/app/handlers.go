@@ -31,7 +31,7 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Forward request to ML model service
 	reqBody := bytes.NewReader(body)
-	resp, err := app.mlService.Post(app.config.MlService.Uri+"/predict", "application/json", reqBody)
+	resp, err := app.mlService.Post(app.config.MlServiceDsn()+"/predict", "application/json", reqBody)
 	if err != nil {
 		app.logger.Error("error making POST request to model service: %v", err)
 		app.errorResponse(w, r, http.StatusInternalServerError, "error making POST request to model service")
@@ -66,12 +66,14 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 		anomalyCounter, err = app.models.Threshold.Increment(input.MachineID)
 		if err != nil {
 			app.logger.Error("error incrementing model threshold counter: %v", err)
+			return
 		}
 	} else {
 		anomaly = false
 		anomalyCounter, err = app.models.Threshold.Decrement(input.MachineID)
 		if err != nil {
 			app.logger.Error("error decrementing model threshold counter: %v", err)
+			return
 		}
 	}
 

@@ -75,7 +75,7 @@ func StartApp(cfg config.Config) {
 }
 
 func postgresDB(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.Db.Dsn)
+	db, err := sql.Open("postgres", cfg.DbDsn())
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func redisDB(cfg config.Config) (*redis.Pool, error) {
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", cfg.Rdb.Uri)
+			return redis.Dial("tcp", cfg.RdbDsn())
 		},
 	}
 	conn := rdb.Get()
@@ -124,7 +124,7 @@ func mlServiceClient(cfg config.Config) (*http.Client, error) {
 	}
 
 	client := &http.Client{Transport: transport, Timeout: time.Second * 10}
-	resp, err := client.Get(cfg.MlService.Uri + "/healthz")
+	resp, err := client.Get(cfg.MlServiceDsn() + "/healthz")
 	if err != nil {
 		return nil, err
 	}
