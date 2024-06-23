@@ -15,7 +15,7 @@ type ThresholdModel struct {
 	Rdb *redis.Pool
 }
 
-func (t ThresholdModel) Insert(threshold Threshold) error {
+func (t *ThresholdModel) Insert(threshold Threshold) error {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 
@@ -33,7 +33,7 @@ func (t ThresholdModel) Insert(threshold Threshold) error {
 	return nil
 }
 
-func (t ThresholdModel) Get(id int) (float64, error) {
+func (t *ThresholdModel) Get(id int) (float64, error) {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 
@@ -44,7 +44,7 @@ func (t ThresholdModel) Get(id int) (float64, error) {
 	return threshold, nil
 }
 
-func (t ThresholdModel) Increment(id int) (int, error) {
+func (t *ThresholdModel) Increment(id int) (int, error) {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 
@@ -67,7 +67,7 @@ func (t ThresholdModel) Increment(id int) (int, error) {
 	return anomalyCounter, nil
 }
 
-func (t ThresholdModel) Decrement(id int) (int, error) {
+func (t *ThresholdModel) Decrement(id int) (int, error) {
 	conn := t.Rdb.Get()
 	defer conn.Close()
 

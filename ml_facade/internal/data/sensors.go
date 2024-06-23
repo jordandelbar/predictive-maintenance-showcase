@@ -65,7 +65,7 @@ type SensorModel struct {
 	DB *sql.DB
 }
 
-func (s SensorModel) Insert(record *Record) error {
+func (s *SensorModel) Insert(record *Record) error {
 	query := `
 		INSERT INTO monitoring (
 			machine_id, sensor_00, sensor_01, sensor_02, sensor_03, sensor_04, sensor_05, sensor_06, sensor_07,
