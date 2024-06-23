@@ -23,4 +23,5 @@ model/train:
 
 .PHONY: model/build
 model/build:
-	rye run bentoml build --containerize -f bentofile.yaml ./src/ml_model/
+	@echo "Build model"
+	@rye run bentoml build --containerize -f bentofile.yaml ./src/ml_model/
