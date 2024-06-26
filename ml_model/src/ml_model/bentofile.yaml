@@ -4,8 +4,12 @@ labels:
   project: predictive-maintenance
 include:
   - "*.py"
+exclude:
+  - "__pycache__/"
 python:
   packages:
-    - torch==2.3.0 --index-url https://download.pytorch.org/whl/cpuu
-    - numpy==1.26.4
-    - pydantic==2.7.2
+    - "torch==2.3.0 --extra-index-url https://download.pytorch.org/whl/cpu"
+    - "numpy==1.26.4"
+    - "pydantic==2.7.2"
+  extra_index_url:
+    - "https://download.pytorch.org/whl/cpu"
