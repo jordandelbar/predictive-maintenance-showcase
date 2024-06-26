@@ -1,3 +1,5 @@
+version ?= 0.0.1-dev
+
 .PHONY: dataset/download
 dataset/download:
 	@echo "Download dataset"
@@ -23,5 +25,5 @@ model/train:
 
 .PHONY: model/build
 model/build:
-	@echo "Build model"
-	@rye run bentoml build --containerize -f bentofile.yaml ./src/ml_model/
+	@echo "Build model version ${version}"
+	@rye run bentoml build --containerize --version ${version} -f bentofile.yaml ./src/ml_model/
