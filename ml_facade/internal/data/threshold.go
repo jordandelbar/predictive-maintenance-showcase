@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -14,22 +15,78 @@ type ThresholdModel struct {
 	Rdb *redis.Pool
 }
 
-func (t ThresholdModel) Insert(threshold Threshold) error {
+func (t *ThresholdModel) Insert(threshold Threshold) error {
 	conn := t.Rdb.Get()
 	defer conn.Close()
-	_, err := conn.Do("HSET", fmt.Sprintf("threshold:%v", threshold.MachineID), "threshold", threshold.Threshold)
+
+	// Initialize the threshold value
+	_, err := conn.Do("SET", fmt.Sprintf("threshold:%v", threshold.MachineID), threshold.Threshold)
+	if err != nil {
+		return err
+	}
+
+	// Initialize the anomaly counter
+	_, err = conn.Do("SET", fmt.Sprintf("anomaly_counter:%v", threshold.MachineID), 0)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t ThresholdModel) Get(id int) (float64, error) {
+func (t *ThresholdModel) Get(id int) (float64, error) {
 	conn := t.Rdb.Get()
 	defer conn.Close()
-	threshold, err := redis.Float64(conn.Do("HGET", fmt.Sprintf("threshold:%v", id), "threshold"))
+
+	threshold, err := redis.Float64(conn.Do("GET", fmt.Sprintf("threshold:%v", id)))
 	if err != nil {
 		return 0., err
 	}
 	return threshold, nil
+}
+
+func (t *ThresholdModel) Increment(id int) (int, error) {
+	conn := t.Rdb.Get()
+	defer conn.Close()
+
+	currentCounter, err := redis.Int(conn.Do("GET", fmt.Sprintf("anomaly_counter:%v", id)))
+	if err != nil {
+		return 0, err
+	}
+
+	var anomalyCounter int
+
+	// Only increment if under 20
+	if currentCounter < 20 {
+		anomalyCounter, err = redis.Int(conn.Do("INCR", fmt.Sprintf("anomaly_counter:%v", id)))
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		anomalyCounter = currentCounter
+	}
+	return anomalyCounter, nil
+}
+
+func (t *ThresholdModel) Decrement(id int) (int, error) {
+	conn := t.Rdb.Get()
+	defer conn.Close()
+
+	currentCounter, err := redis.Int(conn.Do("GET", fmt.Sprintf("anomaly_counter:%v", id)))
+	if err != nil {
+		return 0, err
+	}
+
+	var anomalyCounter int
+
+	// Only decrement if above 0
+	if currentCounter > 0 {
+		anomalyCounter, err = redis.Int(conn.Do("DECR", fmt.Sprintf("anomaly_counter:%v", id)))
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		anomalyCounter = currentCounter
+	}
+
+	return anomalyCounter, nil
 }

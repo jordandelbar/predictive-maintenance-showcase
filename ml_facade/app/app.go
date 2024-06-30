@@ -28,7 +28,7 @@ type application struct {
 func StartApp(cfg config.Config) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	db, err := openDB(cfg)
+	db, err := postgresDB(cfg)
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
@@ -44,7 +44,7 @@ func StartApp(cfg config.Config) {
 	defer rdb.Close()
 	logger.Info("redis database connection pool established")
 
-	client, err := mlService(cfg)
+	client, err := mlServiceClient(cfg)
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
@@ -74,8 +74,8 @@ func StartApp(cfg config.Config) {
 	logger.Error(err.Error())
 }
 
-func openDB(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.Db.Dsn)
+func postgresDB(cfg config.Config) (*sql.DB, error) {
+	db, err := sql.Open("postgres", cfg.DbDsn())
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func redisDB(cfg config.Config) (*redis.Pool, error) {
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", cfg.Rdb.Uri)
+			return redis.Dial("tcp", cfg.RdbDsn())
 		},
 	}
 	conn := rdb.Get()
@@ -114,7 +114,7 @@ func redisDB(cfg config.Config) (*redis.Pool, error) {
 	return rdb, nil
 }
 
-func mlService(cfg config.Config) (*http.Client, error) {
+func mlServiceClient(cfg config.Config) (*http.Client, error) {
 	ErrMlServiceNotRunning := errors.New("ml service is not healthy")
 
 	transport := &http.Transport{
@@ -124,7 +124,7 @@ func mlService(cfg config.Config) (*http.Client, error) {
 	}
 
 	client := &http.Client{Transport: transport, Timeout: time.Second * 10}
-	resp, err := client.Get(cfg.MlService.Uri + "/healthz")
+	resp, err := client.Get(cfg.MlServiceDsn() + "/healthz")
 	if err != nil {
 		return nil, err
 	}

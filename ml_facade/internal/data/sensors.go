@@ -65,7 +65,7 @@ type SensorModel struct {
 	DB *sql.DB
 }
 
-func (s SensorModel) Insert(record *Record) error {
+func (s *SensorModel) Insert(record *Record) error {
 	query := `
 		INSERT INTO monitoring (
 			machine_id, sensor_00, sensor_01, sensor_02, sensor_03, sensor_04, sensor_05, sensor_06, sensor_07,
@@ -74,11 +74,12 @@ func (s SensorModel) Insert(record *Record) error {
 			sensor_26, sensor_27, sensor_28, sensor_29, sensor_30, sensor_31, sensor_32, sensor_33, sensor_34,
 			sensor_35, sensor_36, sensor_37, sensor_38, sensor_39, sensor_40, sensor_41, sensor_42, sensor_43,
 			sensor_44, sensor_45, sensor_46, sensor_47, sensor_48, sensor_49, sensor_50, sensor_51, sensor_52,
-			reconstruction_error, anomaly
+			reconstruction_error, anomaly, anomaly_counter
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
 			$21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38,
-			$39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56
+			$39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
+			$57
 		) RETURNING id, created_at`
 
 	args := []any{
@@ -96,6 +97,7 @@ func (s SensorModel) Insert(record *Record) error {
 		record.SensorData.Sensor43, record.SensorData.Sensor44, record.SensorData.Sensor45, record.SensorData.Sensor46,
 		record.SensorData.Sensor47, record.SensorData.Sensor48, record.SensorData.Sensor49, record.SensorData.Sensor50,
 		record.SensorData.Sensor51, record.SensorData.Sensor52, record.ModelResponse.ReconstructionError, record.Anomaly,
+		record.AnomalyCounter,
 	}
 	return s.DB.QueryRow(query, args...).Scan(&record.ID, &record.CreatedAt)
 }

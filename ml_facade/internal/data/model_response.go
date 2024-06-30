@@ -7,9 +7,10 @@ type ModelResponse struct {
 }
 
 type Record struct {
-	ID            int64
-	CreatedAt     time.Time
-	SensorData    Sensor
-	ModelResponse ModelResponse
-	Anomaly       bool
+	ID             int64
+	CreatedAt      time.Time
+	SensorData     Sensor
+	ModelResponse  ModelResponse
+	Anomaly        bool
+	AnomalyCounter int
 }

@@ -21,7 +21,15 @@ func TestMain(m *testing.M) {
 		fmt.Println(err)
 	}
 	testCfg.Env = "test"
-	testCfg.Db.Dsn = "postgres://monitor:test@localhost/monitoring?sslmode=disable"
+	testCfg.Db.Host = "localhost"
+	testCfg.Db.Port = "5432"
+	testCfg.Db.Username = "monitor"
+	testCfg.Db.Password = "test"
+	testCfg.Db.DatabaseName = "monitoring"
+	testCfg.Rdb.Host = "localhost"
+	testCfg.Rdb.Port = "6379"
+	testCfg.MlService.Host = "localhost"
+	testCfg.MlService.Port = "3000"
 	testCfg.Db.MaxOpenConns = 25
 	testCfg.Db.MaxIdleConns = 25
 	testCfg.Db.MaxIdleTime = 5 * time.Minute

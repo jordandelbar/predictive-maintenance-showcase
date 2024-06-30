@@ -12,7 +12,7 @@ def send_prediction(data):
     response = requests.post(url, headers=headers, json=data)
     end_time = time.time()
     elapsed_time = (end_time - start_time) * 1000
-    print(response.text, elapsed_time)
+    print(response.text, f"{elapsed_time:.2f} ms")
 
 
 def to_float(value):
