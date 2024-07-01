@@ -12,7 +12,7 @@ func main() {
 	var cfg config.Config
 
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.Env, "env", os.Getenv("ENVIRONMENT"), "Environment (development|staging|production)")
 	flag.StringVar(&cfg.Db.Host, "db-host", os.Getenv("MONITORING_DB_HOST"), "PostgreSQL Host")
 	flag.StringVar(&cfg.Db.Port, "db-port", os.Getenv("MONITORING_DB_PORT"), "PostgreSQL Port")
 	flag.StringVar(&cfg.Db.Username, "db-username", os.Getenv("MONITORING_DB_USERNAME"), "PostgreSQL Username")

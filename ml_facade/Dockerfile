@@ -1,5 +1,5 @@
 # Build environment
-FROM golang:1.22-alpine as build-env
+FROM golang:1.22-alpine AS build-env
 WORKDIR /ml-facade
 
 COPY go.mod go.sum ./

@@ -1,0 +1,6 @@
+/migrations
+/tests
+*.env
+makefile
+Dockerfile
+compose.yaml

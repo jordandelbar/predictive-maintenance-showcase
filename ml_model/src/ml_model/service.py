@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 pm_runner = bentoml.pytorch.get("pm_autoencoder:latest").to_runner()
 
-svc = bentoml.Service(name="pm_demo", runners=[pm_runner])
+svc = bentoml.Service(name="pm-demo", runners=[pm_runner])
 
 
 class SensorData(BaseModel):

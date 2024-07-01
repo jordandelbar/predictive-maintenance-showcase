@@ -6,6 +6,10 @@ confirm:
 app/run:
 	@go run ./cmd
 
+.PHONY: app/dev-containers
+app/run-dev-containers:
+	@docker compose up -d postgres redis ml-service
+
 .PHONY: app/test
 app/test:
 	@go test ./tests
