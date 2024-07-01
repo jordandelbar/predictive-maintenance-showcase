@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"ml_facade/internal/data"
 	"net/http"
@@ -38,7 +39,8 @@ func (app *application) predictHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		app.logger.Error("wrong status code from model service: %v", resp.Status)
+		err := errors.New(resp.Status)
+		app.logger.Error("wrong status code from model service: %v", err)
 		app.errorResponse(w, r, http.StatusInternalServerError, "error making POST request to model service")
 		return
 	}
