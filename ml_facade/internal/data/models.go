@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+
 	"github.com/gomodule/redigo/redis"
 )
 
