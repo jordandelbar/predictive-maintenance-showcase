@@ -38,13 +38,6 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: staticcheck ./...
 
-      - name: Install golint
-        run: go install golang.org/x/lint/golint@latest
-
-      - name: Run golint
-        working-directory: ${{env.working-directory}}
-        run: golint ./...
-
       - name: Run tests
         working-directory: ${{env.working-directory}}
         run: go test -race -vet=off ./...
