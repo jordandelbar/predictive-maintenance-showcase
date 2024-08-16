@@ -1,0 +1,38 @@
+name: ML Model CI
+
+on:
+  pull_request:
+    paths:
+      - ml_model/**
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of rye
+        id: setup-rye
+        uses: eifinger/setup-rye@v2
+        with:
+          enable-cache: true
+          working-directory: ml_model
+
+      - name: Rye syncing
+        working-directory: ml_model
+        run: rye sync --no-lock
+
+      - name: Run tests
+        working-directory: ml_model
+        run: |
+          rye run pytest --junitxml=pytest.xml \
+          --cov-report=term-missing:skip-covered \
+          --cov=src tests/ | tee pytest-coverage.txt
+
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-coverage-path: ml_model/pytest-coverage.txt
+          junitxml-path: ml_model/pytest.xml

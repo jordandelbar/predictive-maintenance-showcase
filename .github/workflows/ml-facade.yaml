@@ -1,0 +1,73 @@
+name: ML facade CI
+
+on:
+  pull_request:
+    paths:
+      - ml_facade/**
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      go-cache: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+  audit:
+    runs-on: ubuntu-latest
+    needs: setup
+    env:
+      working-directory: ./ml_facade
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: Verify dependencies
+        working-directory: ${{ env.working-directory }}
+        run: go mod verify
+
+      - name: Build
+        working-directory: ${{ env.working-directory }}
+        run: go build -v ./...
+
+      - name: Run go vet
+        working-directory: ${{ env.working-directory }}
+        run: go vet ./...
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Run staticcheck
+        working-directory: ${{ env.working-directory }}
+        run: staticcheck ./...
+
+  tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    env:
+      working-directory: ./ml_facade
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: Verify dependencies
+        working-directory: ${{ env.working-directory }}
+        run: go mod verify
+
+      - name: Run tests
+        working-directory: ${{ env.working-directory }}
+        run: go test -race -vet=off -coverpkg=./internal/app -coverprofile=coverage.txt ./...

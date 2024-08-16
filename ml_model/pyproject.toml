@@ -1,0 +1,44 @@
+[project]
+name = "ml-model"
+version = "0.1.0"
+description = "Code for training autoencoder deep learning model"
+authors = [
+    { name = "Jordan Delbar", email = "jordandelbar@gmail.com" }
+]
+dependencies = [
+    "polars>=1.4.1",
+    "loguru>=0.7.2",
+    "torch==2.4.0+cpu",
+    "scikit-learn>=1.5.1",
+    "matplotlib>=3.9.2",
+    "seaborn>=0.13.2",
+    "pandas>=2.2.2",
+    "pyarrow>=17.0.0",
+    "click>=8.1.7",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pre-commit>=3.8.0",
+    "notebook>=7.1.0",
+    "pytest>=8.3.2",
+    "pytest-cov>=5.0.0",
+    "onnx>=1.16.2",
+]
+
+[[tool.rye.sources]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ml_model"]

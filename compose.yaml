@@ -1,0 +1,79 @@
+services:
+  ml-service:
+    build:
+      context: ./ml_service
+    ports:
+      - "7216:7216"
+    environment:
+      APP_ENVIRONMENT: "production"
+    networks:
+      - backend
+
+  ml-facade:
+    build:
+      context: ./ml_facade
+    env_file:
+      - ./production.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:16.3-alpine
+    container_name: monitoring-postgres
+    environment:
+      POSTGRES_USER: monitor
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: monitoring
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor -d monitoring"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  redis:
+    image: redis:latest
+    container_name: monitoring-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli","ping"]
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq-demo
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    env_file:
+      - ./grafana.env
+      - ./production.env
+    ports:
+      - "9000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - backend
+
+networks:
+  backend:
