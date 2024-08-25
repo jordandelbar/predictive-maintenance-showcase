@@ -1,16 +1,16 @@
+use crate::configuration::Settings;
+use crate::routes::{healthcheck, predict};
 use axum::{
     routing::{get, post},
     Router,
 };
 use csv::Reader;
+use ndarray::{Array, Array1, Ix1};
 use ort::Session;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::{atomic::AtomicUsize, Arc};
-use ndarray::{Array, Ix1};
-use crate::configuration::Settings;
-use crate::routes::{healthcheck, predict};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -47,7 +47,7 @@ pub fn create_app(_cfg: Settings) -> Result<Router, Box<dyn Error>> {
     Ok(app)
 }
 
-fn load_scaler_tensors(csv_file_path: &str) -> Result<(Array<f32, Ix1>, Array<f32, Ix1>), Box<dyn Error>> {
+fn load_scaler_tensors(csv_file_path: &str) -> Result<(Array1<f32>, Array1<f32>), Box<dyn Error>> {
     let file = File::open(csv_file_path)?;
     let mut rdr = Reader::from_reader(BufReader::new(file));
 

@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use ndarray::{Array, Axis, Ix1, Ix2};
+use ndarray::{Array, Array1, Array2, Axis, Ix2};
 use ort::Session;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -60,19 +60,18 @@ pub async fn predict(
 }
 
 fn scale_input_values(
-    input_values: &Array<f32, Ix2>,
-    min_values: &Array<f32, Ix1>,
-    max_values: &Array<f32, Ix1>,
+    input_values: &Array2<f32>,
+    min_values: &Array1<f32>,
+    max_values: &Array1<f32>,
 ) -> Array<f32, Ix2> {
     let range = max_values.clone() - min_values.clone();
     let range = range.mapv(|r| if r == 0.0 { 1.0 } else { r });
-    tracing::info!("{:?}", input_values);
     (input_values - min_values) / range
 }
 
 fn get_outputs(
     session: Arc<Session>,
-    input_values: &Array<f32, Ix2>,
+    input_values: &Array2<f32>,
 ) -> Result<(Vec<f32>, Vec<f32>), Box<dyn Error>> {
     let output_tensor = &session.run(ort::inputs![input_values.view()]?)?[0];
 
@@ -87,12 +86,8 @@ fn get_outputs(
     Ok((mse, output_values))
 }
 
-fn compute_mse(input: &Array<f32, Ix2>, output: &[f32]) -> Result<Vec<f32>, Box<dyn Error>> {
+fn compute_mse(input: &Array2<f32>, output: &[f32]) -> Result<Vec<f32>, Box<dyn Error>> {
     let output_array = Array::from_shape_vec(input.dim(), output.to_vec())?;
-
-    if input.len() != output_array.len() {
-        return Err("Input and output arrays must have the same length".into());
-    }
 
     let mse: Vec<f32> = input
         .axis_iter(Axis(0))
@@ -112,8 +107,8 @@ fn compute_mse(input: &Array<f32, Ix2>, output: &[f32]) -> Result<Vec<f32>, Box<
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, Array2};
     use super::*;
+    use ndarray::{Array1, Array2};
     #[test]
     fn test_compute_mse_basic() {
         let input = Array::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).unwrap();
@@ -140,20 +135,20 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Input and output arrays must have the same length"
+            "ShapeError/OutOfBounds: out of bounds indexing"
         );
     }
 
     #[test]
     fn test_min_max_scaling() {
         // Arrange
-        let input_values = Array2::from_shape_vec((3, 52), vec![1.0, 1.1, 1.2]).unwrap();
+        let input_values = Array2::from_shape_vec((1, 3), vec![1.0, 1.1, 1.2]).unwrap();
 
-        let min_values:Array<f32, Ix1> = array!([1.0; 52]);
-        let max_values:Array<f32, Ix1> = array!([1.2; 52]);
+        let min_values: Array1<f32> = Array1::from_elem(3, 1.0);
+        let max_values: Array1<f32> = Array1::from_elem(3, 1.2);
 
         // Expected output
-        let expected_scaled_values = Array::from_shape_vec((3, 52), vec![0.0, 0.5, 1.0]).unwrap();
+        let expected_scaled_values = Array::from_shape_vec((1, 3), vec![0.0, 0.5, 1.0]).unwrap();
 
         // Act & Assert
         let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
@@ -163,13 +158,13 @@ mod tests {
     #[test]
     fn test_min_max_scaling_same_data() {
         // Arrange
-        let input_values = Array::from_shape_vec((3, 52), vec![1.0; 156]).unwrap();
+        let input_values = Array::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).unwrap();
 
-        let min_values = array!([1.0; 52]);
-        let max_values = array!([1.2; 52]);
+        let min_values: Array1<f32> = Array1::from_elem(3, 1.0);
+        let max_values: Array1<f32> = Array1::from_elem(3, 1.0);
 
         // Expected output
-        let expected_scaled_values = Array::from_shape_vec((3, 52), vec![0.0; 156]).unwrap();
+        let expected_scaled_values = Array::from_shape_vec((1, 3), vec![0.0, 0.0, 0.0]).unwrap();
 
         // Act & Assert
         let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
@@ -178,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_scale_input_values() {
-        let min_values = array!([
+        let min_values: Array1<f32> = Array1::from_vec(vec![
             0.0,
             0.0,
             33.15972,
@@ -233,7 +228,7 @@ mod tests {
             27.7777786254883,
         ]);
 
-        let max_values = array!([
+        let max_values: Array1<f32> = Array1::from_vec(vec![
             2.549016,
             56.727430000000005,
             56.032990000000005,
@@ -288,115 +283,123 @@ mod tests {
             1000.0,
         ]);
 
-        let input_values = array!([
-            2.465394,
-            47.092009999999995,
-            53.2118,
-            46.310759999999995,
-            634.375,
-            76.45975,
-            13.41146,
-            16.13136,
-            15.567129999999999,
-            15.053529999999999,
-            37.2274,
-            47.52422,
-            31.11716,
-            1.6813529999999999,
-            419.5747,
-            0.0,
-            461.8781,
-            466.3284,
-            2.565284,
-            665.3993,
-            398.9862,
-            880.0001,
-            498.8926,
-            975.9409,
-            627.674,
-            741.7151,
-            848.0708,
-            429.0377,
-            785.1935,
-            684.9443,
-            594.4445,
-            682.8125,
-            680.4416,
-            433.7037,
-            171.9375,
-            341.9039,
-            195.0655,
-            90.32386,
-            40.36458,
-            31.51042,
-            70.57291,
-            30.98958,
-            31.770832061767603,
-            41.92708,
-            39.6412,
-            65.68287,
-            50.92593,
-            38.19444,
-            157.9861,
-            67.70834,
-            243.0556,
-            201.3889,
-        ]);
+        let input_values: Array2<f32> = Array2::from_shape_vec(
+            (1, 52),
+            vec![
+                2.465394,
+                47.092009999999995,
+                53.2118,
+                46.310759999999995,
+                634.375,
+                76.45975,
+                13.41146,
+                16.13136,
+                15.567129999999999,
+                15.053529999999999,
+                37.2274,
+                47.52422,
+                31.11716,
+                1.6813529999999999,
+                419.5747,
+                0.0,
+                461.8781,
+                466.3284,
+                2.565284,
+                665.3993,
+                398.9862,
+                880.0001,
+                498.8926,
+                975.9409,
+                627.674,
+                741.7151,
+                848.0708,
+                429.0377,
+                785.1935,
+                684.9443,
+                594.4445,
+                682.8125,
+                680.4416,
+                433.7037,
+                171.9375,
+                341.9039,
+                195.0655,
+                90.32386,
+                40.36458,
+                31.51042,
+                70.57291,
+                30.98958,
+                31.770832061767603,
+                41.92708,
+                39.6412,
+                65.68287,
+                50.92593,
+                38.19444,
+                157.9861,
+                67.70834,
+                243.0556,
+                201.3889,
+            ],
+        )
+        .unwrap();
 
-        let expected_scaled_values = array!([
-            0.9671944,
-            0.83014536,
-            0.8766599,
-            0.8848164,
-            0.7922421,
-            0.7645984,
-            0.60247236,
-            0.6836295,
-            0.63890535,
-            0.6021412,
-            0.48914647,
-            0.7920703,
-            0.69149244,
-            0.05391103,
-            0.82800055,
-            0.0,
-            0.6243777,
-            0.77721405,
-            0.52640104,
-            0.7570665,
-            0.888793,
-            0.7751717,
-            0.8398002,
-            0.7950224,
-            0.627674,
-            0.8834411,
-            0.68721926,
-            0.21451885,
-            0.4251213,
-            0.46689883,
-            0.37152782,
-            0.37096778,
-            0.36988136,
-            0.27175903,
-            0.31579557,
-            0.49231702,
-            0.19637868,
-            0.51642793,
-            0.040397342,
-            0.023152722,
-            0.09632782,
-            0.02542373,
-            0.027366856,
-            0.045423724,
-            0.014256011,
-            0.13385828,
-            0.071488656,
-            0.03979057,
-            0.24594587,
-            0.0938533,
-            0.22166026,
-            0.17857143,
-        ]);
+        let expected_scaled_values: Array2<f32> = Array2::from_shape_vec(
+            (1, 52),
+            vec![
+                0.9671944,
+                0.83014536,
+                0.8766599,
+                0.8848164,
+                0.7922421,
+                0.7645984,
+                0.60247236,
+                0.6836295,
+                0.63890535,
+                0.6021412,
+                0.48914647,
+                0.7920703,
+                0.69149244,
+                0.05391103,
+                0.82800055,
+                0.0,
+                0.6243777,
+                0.77721405,
+                0.52640104,
+                0.7570665,
+                0.888793,
+                0.7751717,
+                0.8398002,
+                0.7950224,
+                0.627674,
+                0.8834411,
+                0.68721926,
+                0.21451885,
+                0.4251213,
+                0.46689883,
+                0.37152782,
+                0.37096778,
+                0.36988136,
+                0.27175903,
+                0.31579557,
+                0.49231702,
+                0.19637868,
+                0.51642793,
+                0.040397342,
+                0.023152722,
+                0.09632782,
+                0.02542373,
+                0.027366856,
+                0.045423724,
+                0.014256011,
+                0.13385828,
+                0.071488656,
+                0.03979057,
+                0.24594587,
+                0.0938533,
+                0.22166026,
+                0.17857143,
+            ],
+        )
+        .unwrap();
 
         let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
 
