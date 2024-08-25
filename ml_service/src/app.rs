@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 use csv::Reader;
-use ndarray::{Array, Array1, Ix1};
+use ndarray::{Array, Array1};
 use ort::Session;
 use std::error::Error;
 use std::fs::File;
@@ -16,8 +16,8 @@ use std::sync::{atomic::AtomicUsize, Arc};
 pub struct AppState {
     pub sessions: Arc<Vec<Arc<Session>>>,
     pub counter: Arc<AtomicUsize>,
-    pub min_values: Array<f32, Ix1>,
-    pub max_values: Array<f32, Ix1>,
+    pub min_values: Array1<f32>,
+    pub max_values: Array1<f32>,
 }
 
 pub fn create_app(_cfg: Settings) -> Result<Router, Box<dyn Error>> {

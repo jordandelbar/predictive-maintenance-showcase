@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use ndarray::{Array, Array1, Array2, Axis, Ix2};
+use ndarray::{Array, Array1, Array2, Axis};
 use ort::Session;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -63,7 +63,7 @@ fn scale_input_values(
     input_values: &Array2<f32>,
     min_values: &Array1<f32>,
     max_values: &Array1<f32>,
-) -> Array<f32, Ix2> {
+) -> Array2<f32> {
     let range = max_values.clone() - min_values.clone();
     let range = range.mapv(|r| if r == 0.0 { 1.0 } else { r });
     (input_values - min_values) / range
