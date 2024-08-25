@@ -1,7 +1,8 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use ort::{Session, Tensor};
+use ndarray::{Array, Axis, Ix1, Ix2};
+use ort::Session;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::sync::atomic::Ordering;
@@ -12,12 +13,12 @@ use crate::app::AppState;
 
 #[derive(Deserialize)]
 pub struct PredictRequest {
-    input_values: Vec<f32>,
+    input_values: Vec<Vec<f32>>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct PredictResponse {
-    reconstruction_error: f32,
+    reconstruction_errors: Vec<f32>,
 }
 
 #[instrument(skip(state, payload))]
@@ -25,7 +26,12 @@ pub async fn predict(
     State(state): State<AppState>,
     Json(payload): Json<PredictRequest>,
 ) -> impl IntoResponse {
-    let input_values = payload.input_values.clone();
+    let input_values = Array::from_shape_vec(
+        (payload.input_values.len(), payload.input_values[0].len()),
+        payload.input_values.concat(),
+    )
+    .unwrap();
+
     let scaled_input_values =
         scale_input_values(&input_values, &state.min_values, &state.max_values);
 
@@ -34,7 +40,7 @@ pub async fn predict(
 
     tracing::info!("handling request with session {}", session_index);
 
-    let (reconstruction_error, _output_values) = match get_outputs(session, &scaled_input_values) {
+    let (reconstruction_errors, _output_values) = match get_outputs(session, &scaled_input_values) {
         Ok(result) => result,
         Err(err) => {
             tracing::error!(
@@ -43,44 +49,32 @@ pub async fn predict(
                 &input_values
             );
             return Json(PredictResponse {
-                reconstruction_error: 0.0,
+                reconstruction_errors: vec![0.0; input_values.nrows()],
             });
         }
     };
 
     Json(PredictResponse {
-        reconstruction_error,
+        reconstruction_errors,
     })
 }
 
-fn scale_input_values(input_values: &[f32], min_values: &[f32], max_values: &[f32]) -> Vec<f32> {
-    input_values
-        .iter()
-        .enumerate()
-        .map(|(i, &x)| {
-            let min_val = min_values[i];
-            let max_val = max_values[i];
-            let range = max_val - min_val;
-
-            // Compute x_std
-            if range != 0.0 {
-                (x - min_val) / range
-            } else {
-                // If range is zero, return 0.0 to avoid NaN
-                0.0
-            }
-        })
-        .collect()
+fn scale_input_values(
+    input_values: &Array<f32, Ix2>,
+    min_values: &Array<f32, Ix1>,
+    max_values: &Array<f32, Ix1>,
+) -> Array<f32, Ix2> {
+    let range = max_values.clone() - min_values.clone();
+    let range = range.mapv(|r| if r == 0.0 { 1.0 } else { r });
+    tracing::info!("{:?}", input_values);
+    (input_values - min_values) / range
 }
 
 fn get_outputs(
     session: Arc<Session>,
-    input_values: &[f32],
-) -> Result<(f32, Vec<f32>), Box<dyn Error>> {
-    let input_shape = [1usize, 52usize];
-    let value = Tensor::from_array((input_shape, input_values.to_owned().into_boxed_slice()))?;
-
-    let output_tensor = &session.run(ort::inputs![value]?)?[0];
+    input_values: &Array<f32, Ix2>,
+) -> Result<(Vec<f32>, Vec<f32>), Box<dyn Error>> {
+    let output_tensor = &session.run(ort::inputs![input_values.view()]?)?[0];
 
     let output_array = output_tensor.try_extract_tensor::<f32>()?;
     let output_values = output_array
@@ -93,47 +87,54 @@ fn get_outputs(
     Ok((mse, output_values))
 }
 
-fn compute_mse(input: &[f32], output: &[f32]) -> Result<f32, Box<dyn Error>> {
-    if input.len() != output.len() {
+fn compute_mse(input: &Array<f32, Ix2>, output: &[f32]) -> Result<Vec<f32>, Box<dyn Error>> {
+    let output_array = Array::from_shape_vec(input.dim(), output.to_vec())?;
+
+    if input.len() != output_array.len() {
         return Err("Input and output arrays must have the same length".into());
     }
 
-    let sum_of_squares: f32 = input
-        .iter()
-        .zip(output.iter())
-        .map(|(i, o)| (i - o).powi(2)) // Square the difference
-        .sum();
-
-    let mse = sum_of_squares / input.len() as f32;
+    let mse: Vec<f32> = input
+        .axis_iter(Axis(0))
+        .zip(output_array.axis_iter(Axis(0)))
+        .map(|(input_row, output_row)| {
+            input_row
+                .iter()
+                .zip(output_row.iter())
+                .map(|(i, o)| (i - o).powi(2))
+                .sum::<f32>()
+                / input_row.len() as f32
+        })
+        .collect();
 
     Ok(mse)
 }
 
 #[cfg(test)]
 mod tests {
+    use ndarray::{array, Array2};
     use super::*;
-
     #[test]
     fn test_compute_mse_basic() {
-        let input = vec![1.0, 2.0, 3.0];
+        let input = Array::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).unwrap();
         let output = vec![1.0, 2.0, 3.0];
-        let expected = 0.0;
+        let expected = vec![0.0];
         let result = compute_mse(&input, &output).unwrap();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_compute_mse_nonzero() {
-        let input = vec![1.0, 2.0, 3.0];
+        let input = Array::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).unwrap();
         let output = vec![1.0, 2.0, 4.0];
-        let expected = 0.33333334; // (0^2 + 0^2 + 1^2) / 3 = 0.33333334
+        let expected = vec![0.33333334]; // (0^2 + 0^2 + 1^2) / 3 = 0.33333334
         let result = compute_mse(&input, &output).unwrap();
-        assert!((result - expected).abs() < 1e-6);
+        assert!((result[0] - expected[0]).abs() < 1e-6);
     }
 
     #[test]
     fn test_compute_mse_different_lengths() {
-        let input = vec![1.0, 2.0, 3.0];
+        let input = Array::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).unwrap();
         let output = vec![1.0, 2.0];
         let result = compute_mse(&input, &output);
         assert!(result.is_err());
@@ -146,48 +147,38 @@ mod tests {
     #[test]
     fn test_min_max_scaling() {
         // Arrange
-        let input_values = vec![vec![1.0; 52], vec![1.1; 52], vec![1.2; 52]];
+        let input_values = Array2::from_shape_vec((3, 52), vec![1.0, 1.1, 1.2]).unwrap();
 
-        let min_values = vec![1.0; 52];
-        let max_values = vec![1.2; 52];
+        let min_values:Array<f32, Ix1> = array!([1.0; 52]);
+        let max_values:Array<f32, Ix1> = array!([1.2; 52]);
 
         // Expected output
-        let expected_scaled_values = vec![vec![0.0; 52], vec![0.5; 52], vec![1.0; 52]];
+        let expected_scaled_values = Array::from_shape_vec((3, 52), vec![0.0, 0.5, 1.0]).unwrap();
 
         // Act & Assert
-        for (input, expected) in input_values.iter().zip(expected_scaled_values.iter()) {
-            let scaled_values = scale_input_values(input, &min_values, &max_values);
-            assert_eq!(
-                scaled_values, *expected,
-                "Scaled values did not match expected values"
-            );
-        }
+        let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
+        assert_eq!(scaled_values, expected_scaled_values);
     }
 
     #[test]
     fn test_min_max_scaling_same_data() {
         // Arrange
-        let input_values = vec![vec![1.0; 52], vec![1.0; 52], vec![1.0; 52]];
+        let input_values = Array::from_shape_vec((3, 52), vec![1.0; 156]).unwrap();
 
-        let min_values = vec![1.0; 52];
-        let max_values = vec![1.2; 52];
+        let min_values = array!([1.0; 52]);
+        let max_values = array!([1.2; 52]);
 
         // Expected output
-        let expected_scaled_values = vec![vec![0.0; 52], vec![0.0; 52], vec![0.0; 52]];
+        let expected_scaled_values = Array::from_shape_vec((3, 52), vec![0.0; 156]).unwrap();
 
         // Act & Assert
-        for (input, expected) in input_values.iter().zip(expected_scaled_values.iter()) {
-            let scaled_values = scale_input_values(input, &min_values, &max_values);
-            assert_eq!(
-                scaled_values, *expected,
-                "Scaled values did not match expected values"
-            );
-        }
+        let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
+        assert_eq!(scaled_values, expected_scaled_values);
     }
 
     #[test]
     fn test_scale_input_values() {
-        let min_values = vec![
+        let min_values = array!([
             0.0,
             0.0,
             33.15972,
@@ -240,9 +231,9 @@ mod tests {
             26.62037,
             27.488426208496104,
             27.7777786254883,
-        ];
+        ]);
 
-        let max_values = vec![
+        let max_values = array!([
             2.549016,
             56.727430000000005,
             56.032990000000005,
@@ -295,9 +286,9 @@ mod tests {
             464.4097,
             1000.0,
             1000.0,
-        ];
+        ]);
 
-        let input_values = vec![
+        let input_values = array!([
             2.465394,
             47.092009999999995,
             53.2118,
@@ -350,9 +341,9 @@ mod tests {
             67.70834,
             243.0556,
             201.3889,
-        ];
+        ]);
 
-        let expected_scaled_values = vec![
+        let expected_scaled_values = array!([
             0.9671944,
             0.83014536,
             0.8766599,
@@ -405,7 +396,7 @@ mod tests {
             0.0938533,
             0.22166026,
             0.17857143,
-        ];
+        ]);
 
         let scaled_values = scale_input_values(&input_values, &min_values, &max_values);
 
