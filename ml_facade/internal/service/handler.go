@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"io"
 	"ml_facade/internal/models/postgres_models"
 	"net/http"
@@ -23,25 +23,41 @@ import (
 func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_models.MlServiceResponse, int, error) {
 	defer m.wg.Done()
 
-	var input postgres_models.Sensor
-	var reader io.Reader
+	var inputs []postgres_models.Sensor
+	//var reader io.Reader
 
-	reader, err := getReaderFromBody(body)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
+	msgs, ok := body.([]amqp.Delivery)
+	if !ok {
+		return postgres_models.MlServiceResponse{}, 0, fmt.Errorf("expected []amqp.Delivery, got %T", body)
 	}
 
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
+	for _, msg := range msgs {
+		var input postgres_models.Sensor
+
+		err := json.Unmarshal(msg.Body, &input)
+		if err != nil {
+			return postgres_models.MlServiceResponse{}, 0, err
+		}
+
+		inputs = append(inputs, input)
 	}
 
-	err = json.Unmarshal(data, &input)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
+	//reader, err := getReaderFromBody(body)
+	//if err != nil {
+	//	return postgres_models.MlServiceResponse{}, 0, err
+	//}
+	//
+	//data, err := io.ReadAll(reader)
+	//if err != nil {
+	//	return postgres_models.MlServiceResponse{}, 0, err
+	//}
+	//
+	//err = json.Unmarshal(data, &inputs)
+	//if err != nil {
+	//	return postgres_models.MlServiceResponse{}, 0, err
+	//}
 
-	mlRequestBody, err := createMLRequestBody(input)
+	mlRequestBody, err := createMLRequestBody(inputs)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
@@ -51,19 +67,23 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	threshold, err := m.fetchOrCacheThreshold(input.MachineID)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
+	var anomalyCounter int
+	for _, input := range inputs {
+		threshold, err := m.fetchOrCacheThreshold(input.MachineID)
+		if err != nil {
+			return postgres_models.MlServiceResponse{}, 0, err
+		}
 
-	anomaly, anomalyCounter, err := m.determineAnomaly(input.MachineID, modelResponse.ReconstructionError, threshold)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
+		anomaly, counter, err := m.determineAnomaly(input.MachineID, modelResponse.ReconstructionError, threshold)
+		if err != nil {
+			return postgres_models.MlServiceResponse{}, 0, err
+		}
+		anomalyCounter += counter
 
-	err = m.insertRecord(input, modelResponse, anomaly, anomalyCounter, origin)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
+		err = m.insertRecord(input, modelResponse, anomaly, anomalyCounter, origin)
+		if err != nil {
+			return postgres_models.MlServiceResponse{}, 0, err
+		}
 	}
 
 	return modelResponse, anomalyCounter, nil
@@ -71,7 +91,13 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 
 func getReaderFromBody(body any) (io.Reader, error) {
 	switch v := body.(type) {
-	case amqp091.Delivery:
+	case []amqp.Delivery:
+		var combined []byte
+		for _, msg := range v {
+			combined = append(combined, msg.Body...)
+		}
+		return bytes.NewReader(combined), nil
+	case amqp.Delivery:
 		return bytes.NewReader(v.Body), nil
 	case io.Reader:
 		return v, nil
@@ -81,24 +107,28 @@ func getReaderFromBody(body any) (io.Reader, error) {
 }
 
 // createMLRequestBody converts the Sensor struct into the format required by the ML service
-func createMLRequestBody(input postgres_models.Sensor) ([]byte, error) {
-	// Collect all the sensor values into a slice
-	inputValues := []float64{
-		input.Sensor00, input.Sensor01, input.Sensor02, input.Sensor03, input.Sensor04,
-		input.Sensor05, input.Sensor06, input.Sensor07, input.Sensor08, input.Sensor09,
-		input.Sensor10, input.Sensor11, input.Sensor12, input.Sensor13, input.Sensor14,
-		input.Sensor15, input.Sensor16, input.Sensor17, input.Sensor18, input.Sensor19,
-		input.Sensor20, input.Sensor21, input.Sensor22, input.Sensor23, input.Sensor24,
-		input.Sensor25, input.Sensor26, input.Sensor27, input.Sensor28, input.Sensor29,
-		input.Sensor30, input.Sensor31, input.Sensor32, input.Sensor33, input.Sensor34,
-		input.Sensor35, input.Sensor36, input.Sensor37, input.Sensor38, input.Sensor39,
-		input.Sensor40, input.Sensor41, input.Sensor42, input.Sensor43, input.Sensor44,
-		input.Sensor45, input.Sensor46, input.Sensor47, input.Sensor48, input.Sensor49,
-		input.Sensor50, input.Sensor51,
+func createMLRequestBody(input []postgres_models.Sensor) ([]byte, error) {
+	// Initialize a 2D slice
+	inputValues := make([][]float64, len(input))
+
+	for i, sensor := range input {
+		inputValues[i] = []float64{
+			sensor.Sensor00, sensor.Sensor01, sensor.Sensor02, sensor.Sensor03, sensor.Sensor04,
+			sensor.Sensor05, sensor.Sensor06, sensor.Sensor07, sensor.Sensor08, sensor.Sensor09,
+			sensor.Sensor10, sensor.Sensor11, sensor.Sensor12, sensor.Sensor13, sensor.Sensor14,
+			sensor.Sensor15, sensor.Sensor16, sensor.Sensor17, sensor.Sensor18, sensor.Sensor19,
+			sensor.Sensor20, sensor.Sensor21, sensor.Sensor22, sensor.Sensor23, sensor.Sensor24,
+			sensor.Sensor25, sensor.Sensor26, sensor.Sensor27, sensor.Sensor28, sensor.Sensor29,
+			sensor.Sensor30, sensor.Sensor31, sensor.Sensor32, sensor.Sensor33, sensor.Sensor34,
+			sensor.Sensor35, sensor.Sensor36, sensor.Sensor37, sensor.Sensor38, sensor.Sensor39,
+			sensor.Sensor40, sensor.Sensor41, sensor.Sensor42, sensor.Sensor43, sensor.Sensor44,
+			sensor.Sensor45, sensor.Sensor46, sensor.Sensor47, sensor.Sensor48, sensor.Sensor49,
+			sensor.Sensor50, sensor.Sensor51,
+		}
 	}
 
 	mlRequest := map[string]interface{}{
-		"input_values": [][]float64{inputValues},
+		"input_values": inputValues,
 	}
 
 	return json.Marshal(mlRequest)
