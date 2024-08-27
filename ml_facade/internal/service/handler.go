@@ -98,7 +98,7 @@ func createMLRequestBody(input postgres_models.Sensor) ([]byte, error) {
 	}
 
 	mlRequest := map[string]interface{}{
-		"input_values": inputValues,
+		"input_values": [][]float64{inputValues},
 	}
 
 	return json.Marshal(mlRequest)

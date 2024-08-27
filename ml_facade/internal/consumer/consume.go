@@ -30,17 +30,7 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 			if msg.Body != nil {
 				semaphore <- struct{}{}
 
-				go func(msg amqp.Delivery) {
-					defer func() {
-						<-semaphore
-					}()
-
-					c.wg.Add(1)
-					_, _, err := c.service.HandleMlServiceRequest(msg, "rabbitmq")
-					if err != nil {
-						c.logger.Error(fmt.Sprintf("error handling ml service request: %v", err))
-					}
-				}(msg)
+				go c.processBatch(msg, semaphore)
 			}
 		case <-ctx.Done():
 			c.logger.Warn("context canceled, stopping RabbitMQConsumer")
@@ -48,5 +38,17 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 		case err := <-closeCh:
 			return err
 		}
+	}
+}
+
+func (c *RabbitMQConsumer) processBatch(msg amqp.Delivery, semaphore chan struct{}) {
+	defer func() {
+		<-semaphore
+	}()
+
+	c.wg.Add(1)
+	_, _, err := c.service.HandleMlServiceRequest(msg, "rabbitmq")
+	if err != nil {
+		c.logger.Error(fmt.Sprintf("error handling ml service request: %v", err))
 	}
 }
