@@ -63,7 +63,6 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    restart: always
     env_file:
       - ./grafana.env
       - ./production.env

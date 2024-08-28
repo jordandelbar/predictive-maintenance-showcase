@@ -5,15 +5,15 @@ import (
 )
 
 type MlServiceResponse struct {
-	ReconstructionError float64 `json:"reconstruction_error"`
+	ReconstructionErrors []float64 `json:"reconstruction_errors"`
 }
 
 type Record struct {
-	ID             int64
-	CreatedAt      time.Time
-	SensorData     Sensor
-	ModelResponse  MlServiceResponse
-	Anomaly        bool
-	AnomalyCounter int
-	Origin         string
+	ID                  int64
+	CreatedAt           time.Time
+	SensorData          Sensor
+	ReconstructionError float64
+	Anomaly             bool
+	AnomalyCounter      int
+	Origin              string
 }

@@ -95,7 +95,7 @@ func (s *SensorModel) Insert(record *Record) error {
 		record.SensorData.Sensor39, record.SensorData.Sensor40, record.SensorData.Sensor41, record.SensorData.Sensor42,
 		record.SensorData.Sensor43, record.SensorData.Sensor44, record.SensorData.Sensor45, record.SensorData.Sensor46,
 		record.SensorData.Sensor47, record.SensorData.Sensor48, record.SensorData.Sensor49, record.SensorData.Sensor50,
-		record.SensorData.Sensor51, record.ModelResponse.ReconstructionError, record.Anomaly, record.AnomalyCounter,
+		record.SensorData.Sensor51, record.ReconstructionError, record.Anomaly, record.AnomalyCounter,
 		record.Origin,
 	}
 	return s.PostgresDB.QueryRow(query, args...).Scan(&record.ID, &record.CreatedAt)

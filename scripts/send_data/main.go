@@ -38,8 +38,10 @@ func toFloat(value string) float64 {
 
 // sendPrediction sends the data to the prediction endpoint
 func sendPredictionAPI(data SensorData, counter *uint64) {
+	listData := make([]SensorDataPayload, 1)
+	listData = append(listData, data.SensorDataPayload)
 	machineStatus := data.MachineStatus
-	jsonData, err := json.Marshal(data.SensorDataPayload)
+	jsonData, err := json.Marshal(listData)
 	if err != nil {
 		log.Fatalf("Error marshalling data: %v", err)
 	}
