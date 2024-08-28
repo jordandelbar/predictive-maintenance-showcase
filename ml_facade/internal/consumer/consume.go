@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"time"
 )
 
 func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
@@ -25,7 +26,10 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 	semaphore := make(chan struct{}, c.numWorkers)
 
 	const batchSize = 5
+	const batchTimeout = 50 * time.Millisecond
 	buffer := make([]amqp.Delivery, 0, batchSize)
+	timer := time.NewTimer(batchTimeout)
+	defer timer.Stop()
 
 	for {
 		select {
@@ -41,13 +45,33 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 
 			if msg.Body != nil {
 				buffer = append(buffer, msg)
+				if len(buffer) == 1 {
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(batchTimeout)
+				}
 				if len(buffer) >= batchSize {
 					if err := c.dispatchBatch(buffer, semaphore); err != nil {
 						return err
 					}
 					buffer = make([]amqp.Delivery, 0, batchSize)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(batchTimeout)
 				}
 			}
+
+		case <-timer.C:
+			if len(buffer) > 0 {
+				if err := c.dispatchBatch(buffer, semaphore); err != nil {
+					return err
+				}
+				buffer = make([]amqp.Delivery, 0, batchSize)
+			}
+			timer.Reset(batchTimeout)
+
 		case <-ctx.Done():
 			c.logger.Warn("context canceled, stopping RabbitMQConsumer")
 			if len(buffer) > 0 {
