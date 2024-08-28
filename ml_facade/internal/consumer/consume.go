@@ -24,23 +24,62 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 
 	semaphore := make(chan struct{}, c.numWorkers)
 
+	const batchSize = 5
+	buffer := make([]amqp.Delivery, 0, batchSize)
+
 	for {
 		select {
-		case msg := <-messages:
-			if msg.Body != nil {
-				semaphore <- struct{}{}
+		case msg, ok := <-messages:
+			if !ok {
+				if len(buffer) > 0 {
+					if err := c.dispatchBatch(buffer, semaphore); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
 
-				msgs := make([]amqp.Delivery, 1)
-				msgs[0] = msg
-				go c.processBatch(msgs, semaphore)
+			if msg.Body != nil {
+				buffer = append(buffer, msg)
+				if len(buffer) >= batchSize {
+					if err := c.dispatchBatch(buffer, semaphore); err != nil {
+						return err
+					}
+					buffer = make([]amqp.Delivery, 0, batchSize)
+				}
 			}
 		case <-ctx.Done():
 			c.logger.Warn("context canceled, stopping RabbitMQConsumer")
+			if len(buffer) > 0 {
+				if err := c.dispatchBatch(buffer, semaphore); err != nil {
+					return err
+				}
+			}
 			return nil
 		case err := <-closeCh:
+			if len(buffer) > 0 {
+				if dispatchErr := c.dispatchBatch(buffer, semaphore); dispatchErr != nil {
+					c.logger.Error(fmt.Sprintf("error dispatching final batch: %v", dispatchErr))
+				}
+			}
 			return err
 		}
 	}
+}
+
+// dispatchBatch handles the dispatching of a batch of messages.
+// It acquires a semaphore slot, starts a goroutine for processing,
+// and ensures the semaphore is released after processing.
+func (c *RabbitMQConsumer) dispatchBatch(batch []amqp.Delivery, semaphore chan struct{}) error {
+	// Acquire semaphore slot
+	semaphore <- struct{}{}
+
+	// Make a copy of the batch to avoid data races
+	batchCopy := make([]amqp.Delivery, len(batch))
+	copy(batchCopy, batch)
+
+	go c.processBatch(batchCopy, semaphore)
+	return nil
 }
 
 func (c *RabbitMQConsumer) processBatch(msgs []amqp.Delivery, semaphore chan struct{}) {

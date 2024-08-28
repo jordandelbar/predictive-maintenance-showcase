@@ -136,8 +136,8 @@ func main() {
 	var rps = RequestPerSecond{}
 
 	flag.BoolVar(&useRabbitmq, "rabbitmq", false, "Use RabbitMQ for sending data")
-	flag.IntVar(&rps.rate, "requests", 10, "Requests per second")
-	flag.IntVar(&rps.rateBurst, "requests-burst", 2, "Requests per second burst")
+	flag.IntVar(&rps.rate, "requests", 10000, "Requests per second")
+	flag.IntVar(&rps.rateBurst, "requests-burst", 50, "Requests per second burst")
 	flag.Parse()
 
 	// Get the current working directory
@@ -165,13 +165,13 @@ func main() {
 	limiter := rate.NewLimiter(rate.Every(time.Second/time.Duration(rps.rate)), rps.rateBurst)
 
 	var wg sync.WaitGroup
-	dataCh := make(chan SensorData, 100)
+	dataCh := make(chan SensorData, 500)
 	var counter uint64
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	const numWorkers = 30
+	const numWorkers = 80
 	var ch *amqp.Channel
 	var conn *amqp.Connection
 

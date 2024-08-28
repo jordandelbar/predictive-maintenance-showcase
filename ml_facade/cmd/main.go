@@ -25,12 +25,12 @@ func main() {
 	flag.StringVar(&cfg.RedisDB.Port, "rdb-port", os.Getenv("REDIS_DB_PORT"), "Redis Port")
 	flag.StringVar(&cfg.MlService.Host, "ml-service-host", os.Getenv("ML_SERVICE_HOST"), "ML Service Host")
 	flag.StringVar(&cfg.MlService.Port, "ml-service-port", os.Getenv("ML_SERVICE_PORT"), "ML Service Port")
-	flag.IntVar(&cfg.PostgresDB.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	flag.IntVar(&cfg.PostgresDB.MaxOpenConns, "db-max-open-conns", 35, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.PostgresDB.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.PostgresDB.MaxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 	flag.StringVar(&cfg.RabbitMQConsumer.URI, "rabbitmq-uri", os.Getenv("RABBITMQ_URI"), "RabbitMQ URI")
 	flag.StringVar(&cfg.RabbitMQConsumer.Queue, "rabbitmq-queue", os.Getenv("RABBITMQ_QUEUE"), "RabbitMQ Queue")
-	flag.IntVar(&cfg.RabbitMQConsumer.NumWorkers, "rabbitmq-workers", 80, "RabbitMQ number of workers")
+	flag.IntVar(&cfg.RabbitMQConsumer.NumWorkers, "rabbitmq-workers", 100, "RabbitMQ number of workers")
 
 	flag.Parse()
 
