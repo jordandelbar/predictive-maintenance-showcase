@@ -122,7 +122,7 @@ func TestPredictRoute(t *testing.T) {
 		Sensor50:  5.1,
 		Sensor51:  5.2,
 	}
-	jsonData, err := json.Marshal(sensorData)
+	jsonData, err := json.Marshal([]postgres_models.Sensor{sensorData})
 	if err != nil {
 		fmt.Println(err)
 		return

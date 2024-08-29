@@ -28,9 +28,11 @@ func main() {
 	flag.IntVar(&cfg.PostgresDB.MaxOpenConns, "db-max-open-conns", 35, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.PostgresDB.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.PostgresDB.MaxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
-	flag.StringVar(&cfg.RabbitMQConsumer.URI, "rabbitmq-uri", os.Getenv("RABBITMQ_URI"), "RabbitMQ URI")
-	flag.StringVar(&cfg.RabbitMQConsumer.Queue, "rabbitmq-queue", os.Getenv("RABBITMQ_QUEUE"), "RabbitMQ Queue")
-	flag.IntVar(&cfg.RabbitMQConsumer.NumWorkers, "rabbitmq-workers", 100, "RabbitMQ number of workers")
+	flag.StringVar(&cfg.CfgRabbitMQConsumer.URI, "rabbitmq-uri", os.Getenv("RABBITMQ_URI"), "RabbitMQ URI")
+	flag.StringVar(&cfg.CfgRabbitMQConsumer.Queue, "rabbitmq-queue", os.Getenv("RABBITMQ_QUEUE"), "RabbitMQ Queue")
+	flag.IntVar(&cfg.CfgRabbitMQConsumer.NumWorkers, "rabbitmq-workers", 100, "RabbitMQ number of workers")
+	flag.IntVar(&cfg.CfgRabbitMQConsumer.BatchSize, "rabbitmq-batchsize", 20, "RabbitMQ batch size")
+	flag.DurationVar(&cfg.CfgRabbitMQConsumer.BatchTimeout, "rabbitmq-batchtimeout", 50*time.Millisecond, "RabbitMQ batch timeout")
 
 	flag.Parse()
 

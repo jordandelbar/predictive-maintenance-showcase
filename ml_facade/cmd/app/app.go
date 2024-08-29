@@ -62,7 +62,7 @@ func StartApp(cfg config.Config) {
 	logger.Info("ml service client successfully initialized")
 
 	server := api.NewApiServer(cfg, logger, mlService, &thresholdModel, version, &wg)
-	rabbitmqConsumer := consumer.NewRabbitMQConsumer(cfg, logger, mlService, &wg)
+	rabbitmqConsumer := consumer.NewRabbitMQConsumer(cfg.CfgRabbitMQConsumer, logger, mlService, &wg)
 
 	app := &application{
 		config:         cfg,

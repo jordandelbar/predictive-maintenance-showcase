@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+type CfgRabbitMQConsumer struct {
+	URI          string
+	Queue        string
+	NumWorkers   int
+	BatchSize    int
+	BatchTimeout time.Duration
+}
+
 type Config struct {
 	Env     string
 	Port    int
@@ -31,11 +39,7 @@ type Config struct {
 		Host string
 		Port string
 	}
-	RabbitMQConsumer struct {
-		URI        string
-		Queue      string
-		NumWorkers int
-	}
+	CfgRabbitMQConsumer
 }
 
 func (c Config) PostgresDBDsn() string {

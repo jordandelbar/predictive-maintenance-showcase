@@ -132,7 +132,7 @@ func startMockMLService() (*httptest.Server, string, string) {
 		}
 	})
 	handler.HandleFunc("/predict", func(w http.ResponseWriter, r *http.Request) {
-		response := postgres_models.MlServiceResponse{ReconstructionError: 0.2}
+		response := postgres_models.MlServiceResponse{ReconstructionErrors: []float64{0.2}}
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(response)
 		if err != nil {

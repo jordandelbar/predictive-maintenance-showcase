@@ -13,28 +13,26 @@ import (
 
 type RabbitMQConsumer struct {
 	logger     *slog.Logger
-	config     config.Config
+	config     config.CfgRabbitMQConsumer
 	connection *amqp.Connection
 	channel    *amqp.Channel
 	connected  chan bool
 	service    *service.MlService
-	numWorkers int
 	wg         *sync.WaitGroup
 }
 
-func NewRabbitMQConsumer(cfg config.Config, logger *slog.Logger, mlService *service.MlService, wg *sync.WaitGroup) *RabbitMQConsumer {
+func NewRabbitMQConsumer(cfg config.CfgRabbitMQConsumer, logger *slog.Logger, mlService *service.MlService, wg *sync.WaitGroup) *RabbitMQConsumer {
 	return &RabbitMQConsumer{
-		logger:     logger,
-		config:     cfg,
-		connected:  make(chan bool),
-		service:    mlService,
-		numWorkers: cfg.RabbitMQConsumer.NumWorkers,
-		wg:         wg,
+		logger:    logger,
+		config:    cfg,
+		connected: make(chan bool),
+		service:   mlService,
+		wg:        wg,
 	}
 }
 
 func (c *RabbitMQConsumer) connect() error {
-	conn, err := amqp.Dial(c.config.RabbitMQConsumer.URI)
+	conn, err := amqp.Dial(c.config.URI)
 	if err != nil {
 		return err
 	}
@@ -47,7 +45,7 @@ func (c *RabbitMQConsumer) connect() error {
 	c.channel = ch
 
 	_, err = ch.QueueDeclare(
-		c.config.RabbitMQConsumer.Queue,
+		c.config.Queue,
 		true,
 		false,
 		false,

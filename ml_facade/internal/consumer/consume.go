@@ -9,7 +9,7 @@ import (
 
 func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 	messages, err := c.channel.Consume(
-		c.config.RabbitMQConsumer.Queue,
+		c.config.Queue,
 		"",
 		true,
 		false,
@@ -23,9 +23,9 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 	closeCh := make(chan *amqp.Error)
 	c.connection.NotifyClose(closeCh)
 
-	semaphore := make(chan struct{}, c.numWorkers)
+	semaphore := make(chan struct{}, c.config.NumWorkers)
 
-	const batchSize = 5
+	const batchSize = 20
 	const batchTimeout = 50 * time.Millisecond
 	buffer := make([]amqp.Delivery, 0, batchSize)
 	timer := time.NewTimer(batchTimeout)
