@@ -22,7 +22,7 @@ type MlService struct {
 	client         *retryablehttp.Client
 	sensorModel    *postgres_models.SensorModel
 	thresholdModel *redis_models.ThresholdModel
-	config         config.Config
+	config         config.CfgMlService
 	logger         *slog.Logger
 	thresholdCache sync.Map
 	wg             *sync.WaitGroup
@@ -31,7 +31,7 @@ type MlService struct {
 }
 
 func NewMlService(
-	cfg config.Config,
+	cfg config.CfgMlService,
 	logger *slog.Logger,
 	sensorModel *postgres_models.SensorModel,
 	thresholdModel *redis_models.ThresholdModel,
