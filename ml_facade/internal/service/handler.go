@@ -9,7 +9,6 @@ import (
 	"io"
 	"ml_facade/internal/models/postgres_models"
 	"net/http"
-	"reflect"
 	"strconv"
 	"time"
 )
@@ -20,41 +19,16 @@ import (
 // This function takes a request body and its origin, reads and parses the request body,
 // forwards the data to an ML service, retrieves a threshold, determines if an anomaly
 // has occurred, and records the entire transaction.
-// FIXME: create specific types for our different int/bool values
-// FIXME: to refactor
 func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_models.MlServiceResponse, int, error) {
 	defer m.wg.Done()
 
-	var inputs []postgres_models.Sensor
-
-	switch v := body.(type) {
-	case []amqp.Delivery:
-		for _, msg := range v {
-			var input postgres_models.Sensor
-
-			err := json.Unmarshal(msg.Body, &input)
-			if err != nil {
-				return postgres_models.MlServiceResponse{}, 0, err
-			}
-
-			inputs = append(inputs, input)
-		}
-
-	case io.Reader:
-		data, err := io.ReadAll(v)
-		if err != nil {
-			return postgres_models.MlServiceResponse{}, 0, err
-		}
-
-		err = json.Unmarshal(data, &inputs)
-		if err != nil {
-			return postgres_models.MlServiceResponse{}, 0, err
-		}
-	default:
-		return postgres_models.MlServiceResponse{}, 0, fmt.Errorf("unsupported body type: %T", body)
+	// Parse the inputs based on the body type
+	inputs, err := m.parseInputs(body)
+	if err != nil {
+		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	mlRequestBody, err := createMLRequestBody(inputs)
+	mlRequestBody, err := m.createMLRequestBody(inputs)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
@@ -69,27 +43,11 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 		return postgres_models.MlServiceResponse{}, 0, fmt.Errorf("mismatch between number of inputs and reconstruction errors")
 	}
 
-	var anomalyCounter = 0
-	var anomalies []bool
-
-	for i, input := range inputs {
-		threshold, err := m.fetchOrCacheThreshold(input.MachineID)
-		if err != nil {
-			return postgres_models.MlServiceResponse{}, 0, err
-		}
-
-		reconstructionError := modelResponse.ReconstructionErrors[i]
-		anomaly, counter, err := m.determineAnomaly(input.MachineID, reconstructionError, threshold)
-		if err != nil {
-			return postgres_models.MlServiceResponse{}, 0, err
-		}
-
-		// We only take the last counter
-		anomalyCounter = counter
-		anomalies = append(anomalies, anomaly)
+	anomalies, anomalyCounter, err := m.processAnomalies(inputs, modelResponse)
+	if err != nil {
+		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	// Insert record into the database
 	err = m.insertRecord(inputs, modelResponse, anomalies, anomalyCounter, origin)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
@@ -98,25 +56,38 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 	return modelResponse, anomalyCounter, nil
 }
 
-func getReaderFromBody(body any) (io.Reader, error) {
+// parseInputs handles the input parsing based on the body type
+func (m *MlService) parseInputs(body any) ([]postgres_models.Sensor, error) {
+	var inputs []postgres_models.Sensor
+
 	switch v := body.(type) {
 	case []amqp.Delivery:
-		var combined []byte
 		for _, msg := range v {
-			combined = append(combined, msg.Body...)
+			var input postgres_models.Sensor
+			err := json.Unmarshal(msg.Body, &input)
+			if err != nil {
+				return nil, err
+			}
+			inputs = append(inputs, input)
 		}
-		return bytes.NewReader(combined), nil
-	case amqp.Delivery:
-		return bytes.NewReader(v.Body), nil
 	case io.Reader:
-		return v, nil
+		data, err := io.ReadAll(v)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(data, &inputs)
+		if err != nil {
+			return nil, err
+		}
 	default:
-		return nil, fmt.Errorf("body type not supported: %v", reflect.TypeOf(body))
+		return nil, fmt.Errorf("unsupported body type: %T", body)
 	}
+
+	return inputs, nil
 }
 
 // createMLRequestBody converts the Sensor struct into the format required by the ML service
-func createMLRequestBody(input []postgres_models.Sensor) ([]byte, error) {
+func (m *MlService) createMLRequestBody(input []postgres_models.Sensor) ([]byte, error) {
 	// Initialize a 2D slice
 	inputValues := make([][]float64, len(input))
 
@@ -171,6 +142,31 @@ func (m *MlService) forwardRequestToMLService(body []byte) (postgres_models.MlSe
 	}
 
 	return modelResponse, nil
+}
+
+// processAnomalies determines anomalies and counts them
+func (m *MlService) processAnomalies(inputs []postgres_models.Sensor, modelResponse postgres_models.MlServiceResponse) ([]bool, int, error) {
+	var anomalies []bool
+	var anomalyCounter int
+
+	for i, input := range inputs {
+		threshold, err := m.fetchOrCacheThreshold(input.MachineID)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		reconstructionError := modelResponse.ReconstructionErrors[i]
+		anomaly, counter, err := m.determineAnomaly(input.MachineID, reconstructionError, threshold)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// We only take the last counter
+		anomalyCounter = counter
+		anomalies = append(anomalies, anomaly)
+	}
+
+	return anomalies, anomalyCounter, nil
 }
 
 // fetchOrCacheThreshold retrieves the threshold for the given machineID. It first
