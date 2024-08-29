@@ -25,10 +25,8 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 
 	semaphore := make(chan struct{}, c.config.NumWorkers)
 
-	const batchSize = 20
-	const batchTimeout = 50 * time.Millisecond
-	buffer := make([]amqp.Delivery, 0, batchSize)
-	timer := time.NewTimer(batchTimeout)
+	buffer := make([]amqp.Delivery, 0, c.config.BatchSize)
+	timer := time.NewTimer(c.config.BatchTimeout)
 	defer timer.Stop()
 
 	for {
@@ -49,17 +47,17 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 					if !timer.Stop() {
 						<-timer.C
 					}
-					timer.Reset(batchTimeout)
+					timer.Reset(c.config.BatchTimeout)
 				}
-				if len(buffer) >= batchSize {
+				if len(buffer) >= c.config.BatchSize {
 					if err := c.dispatchBatch(buffer, semaphore); err != nil {
 						return err
 					}
-					buffer = make([]amqp.Delivery, 0, batchSize)
+					buffer = make([]amqp.Delivery, 0, c.config.BatchSize)
 					if !timer.Stop() {
 						<-timer.C
 					}
-					timer.Reset(batchTimeout)
+					timer.Reset(c.config.BatchTimeout)
 				}
 			}
 
@@ -68,9 +66,9 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 				if err := c.dispatchBatch(buffer, semaphore); err != nil {
 					return err
 				}
-				buffer = make([]amqp.Delivery, 0, batchSize)
+				buffer = make([]amqp.Delivery, 0, c.config.BatchSize)
 			}
-			timer.Reset(batchTimeout)
+			timer.Reset(c.config.BatchTimeout)
 
 		case <-ctx.Done():
 			c.logger.Warn("context canceled, stopping RabbitMQConsumer")
