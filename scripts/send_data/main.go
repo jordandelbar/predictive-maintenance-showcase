@@ -37,8 +37,8 @@ func toFloat(value string) float64 {
 }
 
 // sendPrediction sends the data to the prediction endpoint
-func sendPredictionAPI(data SensorData, counter *uint64) {
-	listData := make([]SensorDataPayload, 1)
+func sendPredictionAPI(client *http.Client, data SensorData, counter *uint64) {
+	listData := make([]SensorDataPayload, 0)
 	listData = append(listData, data.SensorDataPayload)
 	machineStatus := data.MachineStatus
 	jsonData, err := json.Marshal(listData)
@@ -56,7 +56,6 @@ func sendPredictionAPI(data SensorData, counter *uint64) {
 	}
 
 	startTime := time.Now()
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Error sending request: %v", err)
@@ -107,7 +106,16 @@ func sendPredictionRabbit(ch *amqp.Channel, data SensorData, counter *uint64) {
 	fmt.Printf("%d ms %d rows processed\n", elapsedTime, count)
 }
 
-func worker(ctx context.Context, wg *sync.WaitGroup, limiter *rate.Limiter, dataCh <-chan SensorData, counter *uint64, useRabbitmq bool, ch *amqp.Channel) {
+func worker(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	limiter *rate.Limiter,
+	dataCh <-chan SensorData,
+	counter *uint64,
+	useRabbitmq bool,
+	ch *amqp.Channel,
+	client *http.Client,
+) {
 	defer wg.Done()
 	for {
 		select {
@@ -124,7 +132,7 @@ func worker(ctx context.Context, wg *sync.WaitGroup, limiter *rate.Limiter, data
 			if useRabbitmq {
 				sendPredictionRabbit(ch, data, counter)
 			} else {
-				sendPredictionAPI(data, counter)
+				sendPredictionAPI(client, data, counter)
 			}
 		case <-ctx.Done():
 			return
@@ -134,6 +142,14 @@ func worker(ctx context.Context, wg *sync.WaitGroup, limiter *rate.Limiter, data
 
 func main() {
 	var rps = RequestPerSecond{}
+
+	transport := &http.Transport{
+		MaxIdleConns:      100,
+		MaxConnsPerHost:   50,
+		IdleConnTimeout:   90 * time.Second,
+		DisableKeepAlives: false,
+	}
+	client := &http.Client{Transport: transport}
 
 	flag.BoolVar(&useRabbitmq, "rabbitmq", false, "Use RabbitMQ for sending data")
 	flag.IntVar(&rps.rate, "requests", 10000, "Requests per second")
@@ -165,13 +181,19 @@ func main() {
 	limiter := rate.NewLimiter(rate.Every(time.Second/time.Duration(rps.rate)), rps.rateBurst)
 
 	var wg sync.WaitGroup
-	dataCh := make(chan SensorData, 500)
+	var dataCh = make(chan SensorData, 100)
+	if useRabbitmq {
+		dataCh = make(chan SensorData, 500)
+	}
 	var counter uint64
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	const numWorkers = 80
+	var numWorkers = 50
+	if useRabbitmq {
+		numWorkers = 500
+	}
 	var ch *amqp.Channel
 	var conn *amqp.Connection
 
@@ -204,7 +226,7 @@ func main() {
 
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go worker(ctx, &wg, limiter, dataCh, &counter, useRabbitmq, ch)
+		go worker(ctx, &wg, limiter, dataCh, &counter, useRabbitmq, ch, client)
 	}
 
 	for {

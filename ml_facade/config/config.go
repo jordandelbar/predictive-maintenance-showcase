@@ -40,10 +40,14 @@ type CfgMlService struct {
 	Port string
 }
 
+type CfgApiServer struct {
+	Port    int
+	Limiter CfgLimiter
+}
+
 type Config struct {
 	Env              string
-	Port             int
-	Limiter          CfgLimiter
+	ApiServer        CfgApiServer
 	PostgresDB       CfgPostgresDB
 	RedisDB          CfgRedisDB
 	MlService        CfgMlService
