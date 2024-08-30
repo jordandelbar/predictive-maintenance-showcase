@@ -183,7 +183,7 @@ func main() {
 	var wg sync.WaitGroup
 	var dataCh = make(chan SensorData, 100)
 	if useRabbitmq {
-		dataCh = make(chan SensorData, 500)
+		dataCh = make(chan SensorData, 800)
 	}
 	var counter uint64
 
@@ -229,6 +229,7 @@ func main() {
 		go worker(ctx, &wg, limiter, dataCh, &counter, useRabbitmq, ch, client)
 	}
 
+	startTime := time.Now()
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -301,4 +302,6 @@ func main() {
 	}
 	close(dataCh)
 	wg.Wait()
+	endTime := time.Now()
+	fmt.Printf("Elapsed time: %s\n", endTime.Sub(startTime))
 }

@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"log/slog"
 	"ml_facade/config"
@@ -100,26 +100,34 @@ func StartApp(cfg config.Config) {
 	logger.Info("application shutdown completed")
 }
 
-func postgresDB(cfg config.CfgPostgresDB) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.PostgresDBDsn())
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxIdleTime(cfg.MaxIdleTime)
+func postgresDB(cfg config.CfgPostgresDB) (*pgxpool.Pool, error) {
+	connString := cfg.PostgresDBDsn()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = db.PingContext(ctx)
+	poolConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
-		defer db.Close()
 		return nil, err
 	}
 
-	return db, nil
+	poolConfig.MaxConns = int32(cfg.MaxOpenConns)
+	poolConfig.MinConns = int32(cfg.MaxIdleConns)
+	poolConfig.MaxConnIdleTime = cfg.MaxIdleTime
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	conn.Release()
+
+	return pool, nil
 }
 
 func redisDB(cfg config.CfgRedisDB) (*redis.Pool, error) {

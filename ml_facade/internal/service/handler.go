@@ -145,7 +145,10 @@ func (m *MlService) forwardRequestToMLService(body []byte) (postgres_models.MlSe
 }
 
 // processAnomalies determines anomalies and counts them
-func (m *MlService) processAnomalies(inputs []postgres_models.Sensor, modelResponse postgres_models.MlServiceResponse) ([]bool, int, error) {
+func (m *MlService) processAnomalies(
+	inputs []postgres_models.Sensor,
+	modelResponse postgres_models.MlServiceResponse,
+) ([]bool, int, error) {
 	var anomalies []bool
 	var anomalyCounter int
 
@@ -231,19 +234,21 @@ func (m *MlService) insertRecord(
 		return errors.New("mismatch between number of inputs and anomalies")
 	}
 
+	// Prepare the records for bulk insert
+	records := make([]postgres_models.Record, len(inputs))
 	for i, input := range inputs {
-		record := postgres_models.Record{
+		records[i] = postgres_models.Record{
 			SensorData:          input,
 			ReconstructionError: modelResponse.ReconstructionErrors[i],
 			Anomaly:             anomalies[i],
 			AnomalyCounter:      anomalyCounter,
 			Origin:              origin,
 		}
+	}
 
-		err := m.sensorModel.Insert(&record)
-		if err != nil {
-			return err
-		}
+	err := m.sensorModel.Insert(records)
+	if err != nil {
+		return err
 	}
 
 	return nil
