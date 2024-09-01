@@ -1,5 +1,9 @@
 import click
 
+from pathlib import Path
+
+import polars as pl
+
 from loguru import logger
 
 from ml_model import (
@@ -36,11 +40,16 @@ def main(epochs, version):
     x_test, _ = preprocess_data(data=df_eval)
 
     # Evaluate model
-    _ = evaluate_model(
-        df_eval=df_eval,
+    reconstruction_errors = evaluate_model(
         x_test=x_test,
         model=model,
     )
+
+    # Add reconstruction_errors to original dataset
+    # and write to csv
+    load_data("sensor.csv", exclude_index=False).with_columns(
+        reconstruction_errors=pl.lit(reconstruction_errors)
+    ).write_csv(f"{Path(__file__).parents[2]}/output/reconstruction_errors.csv")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ type RequestPerSecond struct {
 }
 
 type SensorDataPayload struct {
+	RecordID  int     `json:"record_id"`
 	MachineID int     `json:"machine_id"`
 	Sensor00  float64 `json:"sensor_00"`
 	Sensor01  float64 `json:"sensor_01"`

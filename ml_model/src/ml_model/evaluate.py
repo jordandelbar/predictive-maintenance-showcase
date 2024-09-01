@@ -14,7 +14,6 @@ from ml_model import AutoEncoder
 
 def evaluate_model(
     x_test: np.ndarray,
-    df_eval: pl.DataFrame,
     model: AutoEncoder,
 ) -> List[float]:
     with torch.no_grad():
@@ -26,10 +25,6 @@ def evaluate_model(
         )
 
     logger.info(f"Reconstruction errors: {reconstruction_errors}")
-
-    df_eval = df_eval.with_columns(reconstruction_errors=reconstruction_errors)
-
-    df_eval.write_csv(f"{Path(__file__).parents[2]}/output/reconstruction_errors.csv")
 
     # Plot and save output data
     _plot_breakdown_graphs()

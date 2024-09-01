@@ -7,7 +7,7 @@ from loguru import logger
 from polars import Int64, String, Float64
 
 
-def load_data(filename: str) -> pl.DataFrame:
+def load_data(filename: str, exclude_index: bool = True) -> pl.DataFrame:
     schema: Dict[str | Any, Type[Int64 | String | Float64] | Any] = {
         "index": pl.Int64,
         "timestamp": pl.Utf8,
@@ -68,9 +68,11 @@ def load_data(filename: str) -> pl.DataFrame:
     data = _load_csv(filename, schema=schema)
 
     # Exclude 'index' and casting timestamp to datetime
-    return data.select(pl.exclude("index")).with_columns(
-        pl.col("timestamp").str.to_datetime().alias("timestamp")
-    )
+    if exclude_index:
+        return data.select(pl.exclude("index")).with_columns(
+            pl.col("timestamp").str.to_datetime().alias("timestamp")
+        )
+    return data.with_columns(pl.col("timestamp").str.to_datetime().alias("timestamp"))
 
 
 def _load_csv(

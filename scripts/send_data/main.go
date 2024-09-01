@@ -286,6 +286,7 @@ func main() {
 	}
 
 	startTime := time.Now()
+	recordId := 1
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -297,6 +298,7 @@ func main() {
 
 		data := SensorData{
 			SensorDataPayload: SensorDataPayload{
+				RecordID:  recordId,
 				MachineID: 7,
 				Sensor00:  toFloat(row[2]),
 				Sensor01:  toFloat(row[3]),
@@ -355,6 +357,7 @@ func main() {
 		}
 
 		dataCh <- data
+		recordId += 1
 	}
 	close(dataCh)
 	wg.Wait()
