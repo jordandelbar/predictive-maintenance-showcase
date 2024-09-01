@@ -20,9 +20,9 @@ func (a *Server) recoverPanic(next http.Handler) http.Handler {
 }
 
 func (a *Server) rateLimit(next http.Handler) http.Handler {
-	limiter := rate.NewLimiter(rate.Limit(a.config.Limiter.Rps), a.config.Limiter.Burst)
+	limiter := rate.NewLimiter(rate.Limit(a.config.ApiServer.Limiter.Rps), a.config.ApiServer.Limiter.Burst)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a.config.Limiter.Enabled {
+		if a.config.ApiServer.Limiter.Enabled {
 			if r.URL.Path == "/health" {
 				next.ServeHTTP(w, r)
 				return

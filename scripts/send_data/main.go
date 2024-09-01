@@ -37,9 +37,16 @@ func toFloat(value string) float64 {
 }
 
 // sendPrediction sends the data to the prediction endpoint
-func sendPredictionAPI(data SensorData, counter *uint64) {
-	machineStatus := data.MachineStatus
-	jsonData, err := json.Marshal(data.SensorDataPayload)
+func sendPredictionAPI(client *http.Client, data []SensorData, counter *uint64) {
+	var listData []SensorDataPayload
+	for _, sensorData := range data {
+		listData = append(listData, sensorData.SensorDataPayload)
+	}
+	var machineStatuses []string
+	for _, status := range data {
+		machineStatuses = append(machineStatuses, status.MachineStatus)
+	}
+	jsonData, err := json.Marshal(listData)
 	if err != nil {
 		log.Fatalf("Error marshalling data: %v", err)
 	}
@@ -54,7 +61,6 @@ func sendPredictionAPI(data SensorData, counter *uint64) {
 	}
 
 	startTime := time.Now()
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Error sending request: %v", err)
@@ -68,8 +74,8 @@ func sendPredictionAPI(data SensorData, counter *uint64) {
 		log.Fatalf("Error reading response: %v", err)
 	}
 
-	count := atomic.AddUint64(counter, 1)
-	fmt.Printf("%s %d ms %d rows processed, machine status: %s\n", body, elapsedTime, count, machineStatus)
+	count := atomic.AddUint64(counter, uint64(len(data)))
+	fmt.Printf("%s %d ms %d rows processed, machine statuses: %v\n", body, elapsedTime, count, machineStatuses)
 }
 
 func sendPredictionRabbit(ch *amqp.Channel, data SensorData, counter *uint64) {
@@ -105,37 +111,103 @@ func sendPredictionRabbit(ch *amqp.Channel, data SensorData, counter *uint64) {
 	fmt.Printf("%d ms %d rows processed\n", elapsedTime, count)
 }
 
-func worker(ctx context.Context, wg *sync.WaitGroup, limiter *rate.Limiter, dataCh <-chan SensorData, counter *uint64, useRabbitmq bool, ch *amqp.Channel) {
+func worker(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	limiter *rate.Limiter,
+	dataCh <-chan SensorData,
+	counter *uint64,
+	useRabbitmq bool,
+	ch *amqp.Channel,
+	client *http.Client,
+	batchSize int,
+	batchTimeout time.Duration,
+) {
 	defer wg.Done()
+
+	// Buffer to accumulate SensorData
+	var buffer []SensorData
+	timer := time.NewTimer(batchTimeout)
+	defer timer.Stop()
+
 	for {
 		select {
 		case data, ok := <-dataCh:
 			if !ok {
+				// If the channel is closed, flush the remaining buffer before exiting
+				if len(buffer) > 0 {
+					sendBatch(buffer, useRabbitmq, ch, client, counter)
+				}
 				return
 			}
 
-			if err := limiter.Wait(ctx); err != nil {
-				log.Println("Error waiting for limiter: ", err)
-				continue
+			// Add the new data to the buffer
+			buffer = append(buffer, data)
+
+			// If the buffer reaches the batch size, send the batch
+			if len(buffer) >= batchSize {
+				if err := limiter.Wait(ctx); err != nil {
+					log.Println("Error waiting for limiter: ", err)
+					continue
+				}
+				sendBatch(buffer, useRabbitmq, ch, client, counter)
+				buffer = buffer[:0] // Clear the buffer
+				timer.Reset(batchTimeout)
 			}
 
-			if useRabbitmq {
-				sendPredictionRabbit(ch, data, counter)
-			} else {
-				sendPredictionAPI(data, counter)
+		case <-timer.C:
+			// If the timer fires, send the batch
+			if len(buffer) > 0 {
+				if err := limiter.Wait(ctx); err != nil {
+					log.Println("Error waiting for limiter: ", err)
+					continue
+				}
+				sendBatch(buffer, useRabbitmq, ch, client, counter)
+				buffer = buffer[:0] // Clear the buffer
 			}
+			timer.Reset(batchTimeout)
+
 		case <-ctx.Done():
+			// If the context is canceled, flush the remaining buffer before exiting
+			if len(buffer) > 0 {
+				sendBatch(buffer, useRabbitmq, ch, client, counter)
+			}
 			return
 		}
+	}
+}
+
+// sendBatch sends the accumulated data in bulk to either RabbitMQ or the API
+func sendBatch(
+	data []SensorData,
+	useRabbitmq bool,
+	ch *amqp.Channel,
+	client *http.Client,
+	counter *uint64,
+) {
+	if useRabbitmq {
+		for _, sensorData := range data {
+			sendPredictionRabbit(ch, sensorData, counter)
+		}
+	} else {
+		sendPredictionAPI(client, data, counter)
 	}
 }
 
 func main() {
 	var rps = RequestPerSecond{}
 
+	transport := &http.Transport{
+		MaxIdleConns:      100,
+		MaxConnsPerHost:   50,
+		IdleConnTimeout:   90 * time.Second,
+		DisableKeepAlives: false,
+	}
+	client := &http.Client{Transport: transport}
+
 	flag.BoolVar(&useRabbitmq, "rabbitmq", false, "Use RabbitMQ for sending data")
-	flag.IntVar(&rps.rate, "requests", 10, "Requests per second")
-	flag.IntVar(&rps.rateBurst, "requests-burst", 2, "Requests per second burst")
+	flag.IntVar(&rps.rate, "requests", 10000, "Requests per second")
+	flag.IntVar(&rps.rateBurst, "requests-burst", 50, "Requests per second burst")
 	flag.Parse()
 
 	// Get the current working directory
@@ -163,13 +235,21 @@ func main() {
 	limiter := rate.NewLimiter(rate.Every(time.Second/time.Duration(rps.rate)), rps.rateBurst)
 
 	var wg sync.WaitGroup
-	dataCh := make(chan SensorData, 100)
+	var dataCh = make(chan SensorData, 100)
+	if useRabbitmq {
+		dataCh = make(chan SensorData, 800)
+	}
 	var counter uint64
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	const numWorkers = 30
+	batchSize := 20
+	batchTimeout := 50 * time.Millisecond
+	var numWorkers = 50
+	if useRabbitmq {
+		numWorkers = 500
+	}
 	var ch *amqp.Channel
 	var conn *amqp.Connection
 
@@ -202,9 +282,10 @@ func main() {
 
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go worker(ctx, &wg, limiter, dataCh, &counter, useRabbitmq, ch)
+		go worker(ctx, &wg, limiter, dataCh, &counter, useRabbitmq, ch, client, batchSize, batchTimeout)
 	}
 
+	startTime := time.Now()
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -277,4 +358,6 @@ func main() {
 	}
 	close(dataCh)
 	wg.Wait()
+	endTime := time.Now()
+	fmt.Printf("Elapsed time: %s\n", endTime.Sub(startTime))
 }

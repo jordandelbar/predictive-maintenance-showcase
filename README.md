@@ -78,8 +78,8 @@ If you want to run the project, please refer to the setup instructions [here](do
 ### Test Details
 
 - Dataset Size: 220,320 records (CSV file)
-- Processing Time: ~18 seconds
-- Throughput: ~12,200 requests per second
+- Processing Time: ~7 seconds
+- Throughput: ~31,400 records per second
 
 The performance was measured using the RabbitMQ consumer.
 

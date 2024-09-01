@@ -5,48 +5,64 @@ import (
 	"time"
 )
 
-type Config struct {
-	Env     string
+type CfgRabbitMQConsumer struct {
+	URI          string
+	Queue        string
+	NumWorkers   int
+	BatchSize    int
+	BatchTimeout time.Duration
+}
+
+type CfgLimiter struct {
+	Rps     int
+	Burst   int
+	Enabled bool
+}
+
+type CfgPostgresDB struct {
+	Host         string
+	Port         string
+	Username     string
+	Password     string
+	DatabaseName string
+	MaxOpenConns int
+	MaxIdleConns int
+	MaxIdleTime  time.Duration
+}
+
+type CfgRedisDB struct {
+	Host string
+	Port string
+}
+
+type CfgMlService struct {
+	Host string
+	Port string
+}
+
+type CfgApiServer struct {
 	Port    int
-	Limiter struct {
-		Rps     int
-		Burst   int
-		Enabled bool
-	}
-	PostgresDB struct {
-		Host         string
-		Port         string
-		Username     string
-		Password     string
-		DatabaseName string
-		MaxOpenConns int
-		MaxIdleConns int
-		MaxIdleTime  time.Duration
-	}
-	RedisDB struct {
-		Host string
-		Port string
-	}
-	MlService struct {
-		Host string
-		Port string
-	}
-	RabbitMQConsumer struct {
-		URI        string
-		Queue      string
-		NumWorkers int
-	}
+	Limiter CfgLimiter
 }
 
-func (c Config) PostgresDBDsn() string {
+type Config struct {
+	Env              string
+	ApiServer        CfgApiServer
+	PostgresDB       CfgPostgresDB
+	RedisDB          CfgRedisDB
+	MlService        CfgMlService
+	RabbitMQConsumer CfgRabbitMQConsumer
+}
+
+func (c CfgPostgresDB) PostgresDBDsn() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		c.PostgresDB.Username, c.PostgresDB.Password, c.PostgresDB.Host, c.PostgresDB.Port, c.PostgresDB.DatabaseName)
+		c.Username, c.Password, c.Host, c.Port, c.DatabaseName)
 }
 
-func (c Config) RedisDBDsn() string {
-	return fmt.Sprintf("%s:%s", c.RedisDB.Host, c.RedisDB.Port)
+func (c CfgRedisDB) RedisDBDsn() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
-func (c Config) MlServiceUri() string {
-	return fmt.Sprintf("http://%s:%s", c.MlService.Host, c.MlService.Port)
+func (c CfgMlService) MlServiceUri() string {
+	return fmt.Sprintf("http://%s:%s", c.Host, c.Port)
 }

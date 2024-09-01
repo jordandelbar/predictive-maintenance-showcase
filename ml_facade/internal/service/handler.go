@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"io"
 	"ml_facade/internal/models/postgres_models"
 	"net/http"
-	"reflect"
 	"strconv"
 	"time"
 )
@@ -23,25 +22,13 @@ import (
 func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_models.MlServiceResponse, int, error) {
 	defer m.wg.Done()
 
-	var input postgres_models.Sensor
-	var reader io.Reader
-
-	reader, err := getReaderFromBody(body)
+	// Parse the inputs based on the body type
+	inputs, err := m.parseInputs(body)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
-
-	err = json.Unmarshal(data, &input)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
-
-	mlRequestBody, err := createMLRequestBody(input)
+	mlRequestBody, err := m.createMLRequestBody(inputs)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
@@ -51,17 +38,17 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	threshold, err := m.fetchOrCacheThreshold(input.MachineID)
+	// Check that our input length is the same as the reconstruction errors length
+	if len(modelResponse.ReconstructionErrors) != len(inputs) {
+		return postgres_models.MlServiceResponse{}, 0, fmt.Errorf("mismatch between number of inputs and reconstruction errors")
+	}
+
+	anomalies, anomalyCounter, err := m.processAnomalies(inputs, modelResponse)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
 
-	anomaly, anomalyCounter, err := m.determineAnomaly(input.MachineID, modelResponse.ReconstructionError, threshold)
-	if err != nil {
-		return postgres_models.MlServiceResponse{}, 0, err
-	}
-
-	err = m.insertRecord(input, modelResponse, anomaly, anomalyCounter, origin)
+	err = m.insertRecord(inputs, modelResponse, anomalies, anomalyCounter, origin)
 	if err != nil {
 		return postgres_models.MlServiceResponse{}, 0, err
 	}
@@ -69,32 +56,55 @@ func (m *MlService) HandleMlServiceRequest(body any, origin string) (postgres_mo
 	return modelResponse, anomalyCounter, nil
 }
 
-func getReaderFromBody(body any) (io.Reader, error) {
+// parseInputs handles the input parsing based on the body type
+func (m *MlService) parseInputs(body any) ([]postgres_models.Sensor, error) {
+	var inputs []postgres_models.Sensor
+
 	switch v := body.(type) {
-	case amqp091.Delivery:
-		return bytes.NewReader(v.Body), nil
+	case []amqp.Delivery:
+		for _, msg := range v {
+			var input postgres_models.Sensor
+			err := json.Unmarshal(msg.Body, &input)
+			if err != nil {
+				return nil, err
+			}
+			inputs = append(inputs, input)
+		}
 	case io.Reader:
-		return v, nil
+		data, err := io.ReadAll(v)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(data, &inputs)
+		if err != nil {
+			return nil, err
+		}
 	default:
-		return nil, fmt.Errorf("body type not supported: %v", reflect.TypeOf(body))
+		return nil, fmt.Errorf("unsupported body type: %T", body)
 	}
+
+	return inputs, nil
 }
 
 // createMLRequestBody converts the Sensor struct into the format required by the ML service
-func createMLRequestBody(input postgres_models.Sensor) ([]byte, error) {
-	// Collect all the sensor values into a slice
-	inputValues := []float64{
-		input.Sensor00, input.Sensor01, input.Sensor02, input.Sensor03, input.Sensor04,
-		input.Sensor05, input.Sensor06, input.Sensor07, input.Sensor08, input.Sensor09,
-		input.Sensor10, input.Sensor11, input.Sensor12, input.Sensor13, input.Sensor14,
-		input.Sensor15, input.Sensor16, input.Sensor17, input.Sensor18, input.Sensor19,
-		input.Sensor20, input.Sensor21, input.Sensor22, input.Sensor23, input.Sensor24,
-		input.Sensor25, input.Sensor26, input.Sensor27, input.Sensor28, input.Sensor29,
-		input.Sensor30, input.Sensor31, input.Sensor32, input.Sensor33, input.Sensor34,
-		input.Sensor35, input.Sensor36, input.Sensor37, input.Sensor38, input.Sensor39,
-		input.Sensor40, input.Sensor41, input.Sensor42, input.Sensor43, input.Sensor44,
-		input.Sensor45, input.Sensor46, input.Sensor47, input.Sensor48, input.Sensor49,
-		input.Sensor50, input.Sensor51,
+func (m *MlService) createMLRequestBody(input []postgres_models.Sensor) ([]byte, error) {
+	// Initialize a 2D slice
+	inputValues := make([][]float64, len(input))
+
+	for i, sensor := range input {
+		inputValues[i] = []float64{
+			sensor.Sensor00, sensor.Sensor01, sensor.Sensor02, sensor.Sensor03, sensor.Sensor04,
+			sensor.Sensor05, sensor.Sensor06, sensor.Sensor07, sensor.Sensor08, sensor.Sensor09,
+			sensor.Sensor10, sensor.Sensor11, sensor.Sensor12, sensor.Sensor13, sensor.Sensor14,
+			sensor.Sensor15, sensor.Sensor16, sensor.Sensor17, sensor.Sensor18, sensor.Sensor19,
+			sensor.Sensor20, sensor.Sensor21, sensor.Sensor22, sensor.Sensor23, sensor.Sensor24,
+			sensor.Sensor25, sensor.Sensor26, sensor.Sensor27, sensor.Sensor28, sensor.Sensor29,
+			sensor.Sensor30, sensor.Sensor31, sensor.Sensor32, sensor.Sensor33, sensor.Sensor34,
+			sensor.Sensor35, sensor.Sensor36, sensor.Sensor37, sensor.Sensor38, sensor.Sensor39,
+			sensor.Sensor40, sensor.Sensor41, sensor.Sensor42, sensor.Sensor43, sensor.Sensor44,
+			sensor.Sensor45, sensor.Sensor46, sensor.Sensor47, sensor.Sensor48, sensor.Sensor49,
+			sensor.Sensor50, sensor.Sensor51,
+		}
 	}
 
 	mlRequest := map[string]interface{}{
@@ -132,6 +142,34 @@ func (m *MlService) forwardRequestToMLService(body []byte) (postgres_models.MlSe
 	}
 
 	return modelResponse, nil
+}
+
+// processAnomalies determines anomalies and counts them
+func (m *MlService) processAnomalies(
+	inputs []postgres_models.Sensor,
+	modelResponse postgres_models.MlServiceResponse,
+) ([]bool, int, error) {
+	var anomalies []bool
+	var anomalyCounter int
+
+	for i, input := range inputs {
+		threshold, err := m.fetchOrCacheThreshold(input.MachineID)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		reconstructionError := modelResponse.ReconstructionErrors[i]
+		anomaly, counter, err := m.determineAnomaly(input.MachineID, reconstructionError, threshold)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// We only take the last counter
+		anomalyCounter = counter
+		anomalies = append(anomalies, anomaly)
+	}
+
+	return anomalies, anomalyCounter, nil
 }
 
 // fetchOrCacheThreshold retrieves the threshold for the given machineID. It first
@@ -186,21 +224,29 @@ func (m *MlService) determineAnomaly(machineID int, reconstructionError, thresho
 
 // insertRecord inserts a new record into the database, containing sensor data, model response, anomaly flag, and anomaly counter.
 func (m *MlService) insertRecord(
-	input postgres_models.Sensor,
+	inputs []postgres_models.Sensor,
 	modelResponse postgres_models.MlServiceResponse,
-	anomaly bool,
+	anomalies []bool,
 	anomalyCounter int,
 	origin string) error {
 
-	record := postgres_models.Record{
-		SensorData:     input,
-		ModelResponse:  modelResponse,
-		Anomaly:        anomaly,
-		AnomalyCounter: anomalyCounter,
-		Origin:         origin,
+	if len(inputs) != len(anomalies) {
+		return errors.New("mismatch between number of inputs and anomalies")
 	}
 
-	err := m.sensorModel.Insert(&record)
+	// Prepare the records for bulk insert
+	records := make([]postgres_models.Record, len(inputs))
+	for i, input := range inputs {
+		records[i] = postgres_models.Record{
+			SensorData:          input,
+			ReconstructionError: modelResponse.ReconstructionErrors[i],
+			Anomaly:             anomalies[i],
+			AnomalyCounter:      anomalyCounter,
+			Origin:              origin,
+		}
+	}
+
+	err := m.sensorModel.Insert(records)
 	if err != nil {
 		return err
 	}

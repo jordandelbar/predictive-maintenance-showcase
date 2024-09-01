@@ -92,7 +92,7 @@ def train_model(
         model_path,
         input_names=["input"],
         output_names=["output"],
-        # dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
     )
     logger.info(f"Model saved at {model_path}")
     return autoencoder

@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 	mockMlService, mlServiceHost, mlServicePort := startMockMLService()
 	defer mockMlService.Close()
 
-	testCfg.Port, err = findAvailablePort()
+	testCfg.ApiServer.Port, err = findAvailablePort()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -109,7 +109,7 @@ func TestMain(m *testing.M) {
 
 	go app.StartApp(testCfg)
 
-	if !waitForAPI(fmt.Sprintf("http://localhost:%d/health", testCfg.Port), 30, 1*time.Second) {
+	if !waitForAPI(fmt.Sprintf("http://localhost:%d/health", testCfg.ApiServer.Port), 30, 1*time.Second) {
 		fmt.Println("API did not start in time")
 		os.Exit(1)
 	}
@@ -132,7 +132,7 @@ func startMockMLService() (*httptest.Server, string, string) {
 		}
 	})
 	handler.HandleFunc("/predict", func(w http.ResponseWriter, r *http.Request) {
-		response := postgres_models.MlServiceResponse{ReconstructionError: 0.2}
+		response := postgres_models.MlServiceResponse{ReconstructionErrors: []float64{0.2}}
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(response)
 		if err != nil {
@@ -219,7 +219,7 @@ func InitializeRedisThreshold(config config.Config) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to marshal threshold: %v", err))
 	}
-	_, _ = http.Post(fmt.Sprintf("http://localhost:%d/v1/threshold", config.Port),
+	_, _ = http.Post(fmt.Sprintf("http://localhost:%d/v1/threshold", config.ApiServer.Port),
 		"application/json", bytes.NewBuffer(jsonData))
 }
 

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"time"
 )
 
 func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 	messages, err := c.channel.Consume(
-		c.config.RabbitMQConsumer.Queue,
+		c.config.Queue,
 		"",
 		true,
 		false,
@@ -22,31 +23,95 @@ func (c *RabbitMQConsumer) Consume(ctx context.Context) error {
 	closeCh := make(chan *amqp.Error)
 	c.connection.NotifyClose(closeCh)
 
-	semaphore := make(chan struct{}, c.numWorkers)
+	semaphore := make(chan struct{}, c.config.NumWorkers)
+
+	buffer := make([]amqp.Delivery, 0, c.config.BatchSize)
+	timer := time.NewTimer(c.config.BatchTimeout)
+	defer timer.Stop()
 
 	for {
 		select {
-		case msg := <-messages:
-			if msg.Body != nil {
-				semaphore <- struct{}{}
-
-				go func(msg amqp.Delivery) {
-					defer func() {
-						<-semaphore
-					}()
-
-					c.wg.Add(1)
-					_, _, err := c.service.HandleMlServiceRequest(msg, "rabbitmq")
-					if err != nil {
-						c.logger.Error(fmt.Sprintf("error handling ml service request: %v", err))
+		case msg, ok := <-messages:
+			if !ok {
+				if len(buffer) > 0 {
+					if err := c.dispatchBatch(buffer, semaphore); err != nil {
+						return err
 					}
-				}(msg)
+				}
+				return nil
 			}
+
+			if msg.Body != nil {
+				buffer = append(buffer, msg)
+				if len(buffer) == 1 {
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.config.BatchTimeout)
+				}
+				if len(buffer) >= c.config.BatchSize {
+					if err := c.dispatchBatch(buffer, semaphore); err != nil {
+						return err
+					}
+					buffer = make([]amqp.Delivery, 0, c.config.BatchSize)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.config.BatchTimeout)
+				}
+			}
+
+		case <-timer.C:
+			if len(buffer) > 0 {
+				if err := c.dispatchBatch(buffer, semaphore); err != nil {
+					return err
+				}
+				buffer = make([]amqp.Delivery, 0, c.config.BatchSize)
+			}
+			timer.Reset(c.config.BatchTimeout)
+
 		case <-ctx.Done():
 			c.logger.Warn("context canceled, stopping RabbitMQConsumer")
+			if len(buffer) > 0 {
+				if err := c.dispatchBatch(buffer, semaphore); err != nil {
+					return err
+				}
+			}
 			return nil
 		case err := <-closeCh:
+			if len(buffer) > 0 {
+				if dispatchErr := c.dispatchBatch(buffer, semaphore); dispatchErr != nil {
+					c.logger.Error(fmt.Sprintf("error dispatching final batch: %v", dispatchErr))
+				}
+			}
 			return err
 		}
+	}
+}
+
+// dispatchBatch handles the dispatching of a batch of messages.
+// It acquires a semaphore slot, starts a goroutine for processing,
+// and ensures the semaphore is released after processing.
+func (c *RabbitMQConsumer) dispatchBatch(batch []amqp.Delivery, semaphore chan struct{}) error {
+	// Acquire semaphore slot
+	semaphore <- struct{}{}
+
+	// Make a copy of the batch to avoid data races
+	batchCopy := make([]amqp.Delivery, len(batch))
+	copy(batchCopy, batch)
+
+	go c.processBatch(batchCopy, semaphore)
+	return nil
+}
+
+func (c *RabbitMQConsumer) processBatch(msgs []amqp.Delivery, semaphore chan struct{}) {
+	defer func() {
+		<-semaphore
+	}()
+
+	c.wg.Add(1)
+	_, _, err := c.service.HandleMlServiceRequest(msgs, "rabbitmq")
+	if err != nil {
+		c.logger.Error(fmt.Sprintf("error handling ml service request: %v", err))
 	}
 }

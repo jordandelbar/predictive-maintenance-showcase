@@ -12,7 +12,7 @@ import (
 // Check if the healthcheck route works normally
 func TestHealthcheck(t *testing.T) {
 	// Arrange
-	url := fmt.Sprintf("http://localhost:%d/health", testCfg.Port)
+	url := fmt.Sprintf("http://localhost:%d/health", testCfg.ApiServer.Port)
 
 	// Act
 	resp, err := http.Get(url)
@@ -28,8 +28,8 @@ func TestHealthcheck(t *testing.T) {
 // Check if the routes return a MethodNotAllowed if wrong request is sent
 func TestWrongMethod(t *testing.T) {
 	// Arrange
-	url1 := fmt.Sprintf("http://localhost:%d/v1/predict", testCfg.Port)
-	url2 := fmt.Sprintf("http://localhost:%d/health", testCfg.Port)
+	url1 := fmt.Sprintf("http://localhost:%d/v1/predict", testCfg.ApiServer.Port)
+	url2 := fmt.Sprintf("http://localhost:%d/health", testCfg.ApiServer.Port)
 
 	// Act
 	resp1, err := http.Get(url1)
@@ -51,7 +51,7 @@ func TestWrongMethod(t *testing.T) {
 // Check if request to a wrong route send the StatusNotFound response
 func TestWrongRoute(t *testing.T) {
 	// Arrange
-	url := fmt.Sprintf("http://localhost:%d/v1/wrongroute", testCfg.Port)
+	url := fmt.Sprintf("http://localhost:%d/v1/wrongroute", testCfg.ApiServer.Port)
 
 	// Act
 	resp, err := http.Get(url)
@@ -66,7 +66,7 @@ func TestWrongRoute(t *testing.T) {
 
 func TestPredictRoute(t *testing.T) {
 	// Arrange
-	url := fmt.Sprintf("http://localhost:%d/v1/predict", testCfg.Port)
+	url := fmt.Sprintf("http://localhost:%d/v1/predict", testCfg.ApiServer.Port)
 	sensorData := postgres_models.Sensor{
 		MachineID: machineID,
 		Sensor00:  0.1,
@@ -122,7 +122,7 @@ func TestPredictRoute(t *testing.T) {
 		Sensor50:  5.1,
 		Sensor51:  5.2,
 	}
-	jsonData, err := json.Marshal(sensorData)
+	jsonData, err := json.Marshal([]postgres_models.Sensor{sensorData})
 	if err != nil {
 		fmt.Println(err)
 		return

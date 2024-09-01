@@ -35,11 +35,11 @@ func NewApiServer(config config.Config, logger *slog.Logger, service *service.Ml
 
 func (a *Server) Serve(ctx context.Context) error {
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", a.config.Port),
+		Addr:         fmt.Sprintf(":%d", a.config.ApiServer.Port),
 		Handler:      a.routes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  30 * time.Second,
 		ErrorLog:     slog.NewLogLogger(a.logger.Handler(), slog.LevelError),
 	}
 

@@ -1,23 +1,23 @@
+use crate::configuration::Settings;
+use crate::routes::{healthcheck, predict};
 use axum::{
     routing::{get, post},
     Router,
 };
 use csv::Reader;
+use ndarray::{Array, Array1};
 use ort::Session;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::{atomic::AtomicUsize, Arc};
 
-use crate::configuration::Settings;
-use crate::routes::{healthcheck, predict};
-
 #[derive(Clone)]
 pub struct AppState {
     pub sessions: Arc<Vec<Arc<Session>>>,
     pub counter: Arc<AtomicUsize>,
-    pub min_values: Vec<f32>,
-    pub max_values: Vec<f32>,
+    pub min_values: Array1<f32>,
+    pub max_values: Array1<f32>,
 }
 
 pub fn create_app(_cfg: Settings) -> Result<Router, Box<dyn Error>> {
@@ -47,7 +47,7 @@ pub fn create_app(_cfg: Settings) -> Result<Router, Box<dyn Error>> {
     Ok(app)
 }
 
-fn load_scaler_tensors(csv_file_path: &str) -> Result<(Vec<f32>, Vec<f32>), Box<dyn Error>> {
+fn load_scaler_tensors(csv_file_path: &str) -> Result<(Array1<f32>, Array1<f32>), Box<dyn Error>> {
     let file = File::open(csv_file_path)?;
     let mut rdr = Reader::from_reader(BufReader::new(file));
 
@@ -60,5 +60,5 @@ fn load_scaler_tensors(csv_file_path: &str) -> Result<(Vec<f32>, Vec<f32>), Box<
         max_values.push(record[1].parse::<f32>()?);
     }
 
-    Ok((min_values, max_values))
+    Ok((Array::from_vec(min_values), Array::from_vec(max_values)))
 }

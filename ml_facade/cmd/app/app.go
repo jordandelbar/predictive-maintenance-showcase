@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"log/slog"
 	"ml_facade/config"
@@ -37,14 +37,14 @@ func StartApp(cfg config.Config) {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	pdb, err := postgresDB(cfg)
+	pdb, err := postgresDB(cfg.PostgresDB)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to connect to postgres_models: %s", err))
 		os.Exit(1)
 	}
 	logger.Info("postgresql database connection pool established")
 
-	rdb, err := redisDB(cfg)
+	rdb, err := redisDB(cfg.RedisDB)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to connect to redis database: %s", err))
 		os.Exit(1)
@@ -54,7 +54,7 @@ func StartApp(cfg config.Config) {
 	thresholdModel := redis_models.ThresholdModel{RedisDB: rdb}
 	sensorModel := postgres_models.SensorModel{PostgresDB: pdb}
 
-	mlService, err := service.NewMlService(cfg, logger, &sensorModel, &thresholdModel, &wg)
+	mlService, err := service.NewMlService(cfg.MlService, logger, &sensorModel, &thresholdModel, &wg)
 	if err != nil {
 		logger.Error(fmt.Sprintf("error creating ml service client: %v", err))
 		os.Exit(1)
@@ -62,7 +62,7 @@ func StartApp(cfg config.Config) {
 	logger.Info("ml service client successfully initialized")
 
 	server := api.NewApiServer(cfg, logger, mlService, &thresholdModel, version, &wg)
-	rabbitmqConsumer := consumer.NewRabbitMQConsumer(cfg, logger, mlService, &wg)
+	rabbitmqConsumer := consumer.NewRabbitMQConsumer(cfg.RabbitMQConsumer, logger, mlService, &wg)
 
 	app := &application{
 		config:         cfg,
@@ -100,29 +100,37 @@ func StartApp(cfg config.Config) {
 	logger.Info("application shutdown completed")
 }
 
-func postgresDB(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.PostgresDBDsn())
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxOpenConns(cfg.PostgresDB.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.PostgresDB.MaxIdleConns)
-	db.SetConnMaxIdleTime(cfg.PostgresDB.MaxIdleTime)
+func postgresDB(cfg config.CfgPostgresDB) (*pgxpool.Pool, error) {
+	connString := cfg.PostgresDBDsn()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = db.PingContext(ctx)
+	poolConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
-		defer db.Close()
 		return nil, err
 	}
 
-	return db, nil
+	poolConfig.MaxConns = int32(cfg.MaxOpenConns)
+	poolConfig.MinConns = int32(cfg.MaxIdleConns)
+	poolConfig.MaxConnIdleTime = cfg.MaxIdleTime
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	conn.Release()
+
+	return pool, nil
 }
 
-func redisDB(cfg config.Config) (*redis.Pool, error) {
+func redisDB(cfg config.CfgRedisDB) (*redis.Pool, error) {
 	rdb := &redis.Pool{
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
