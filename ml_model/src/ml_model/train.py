@@ -11,7 +11,8 @@ from loguru import logger
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_model import AutoEncoder
+from ml_model.model import AutoEncoder
+from ml_model.utils import remove_graph
 
 
 def train_model(
@@ -80,8 +81,11 @@ def train_model(
             logger.info(f"Early stopping triggered at epoch {epoch + 1}")
             break
 
+    graph_path = "./output/training_loss.png"
+    remove_graph(graph_path)
     plt.plot(range(len(training_loss_list)), training_loss_list)
-    plt.savefig("./output/training_loss.png")
+    plt.savefig(graph_path)
+    plt.close()
 
     # Save the model in onnx format
     dummy_input = torch.randn(1, 52)

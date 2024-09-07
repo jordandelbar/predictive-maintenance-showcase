@@ -9,7 +9,8 @@ import torch
 
 from loguru import logger
 
-from ml_model import AutoEncoder
+from ml_model.model import AutoEncoder
+from ml_model.utils import remove_graph
 
 
 def evaluate_model(
@@ -65,7 +66,7 @@ def _plot_breakdown_graphs():
         graph_path = (
             f"{Path(__file__).parents[2]}/output/broken_status_graph_{breakdown_nb}.png"
         )
-        _remove_graph(graph_path)
+        remove_graph(graph_path)
         plt.savefig(graph_path)
         plt.close()
 
@@ -85,11 +86,6 @@ def _plot_reconstruction_errors():
     plt.plot(rec_broken["timestamp"], rec_broken["reconstruction_errors"], "rx")
 
     graph_path = f"{Path(__file__).parents[2]}/output/reconstruction_errors_graph.png"
-    _remove_graph(graph_path)
+    remove_graph(graph_path)
     plt.savefig(graph_path)
     plt.close()
-
-
-def _remove_graph(filepath):
-    if os.path.isfile(filepath):
-        os.remove(filepath)

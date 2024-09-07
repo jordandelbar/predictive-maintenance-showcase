@@ -4,6 +4,7 @@ from .preprocess import preprocess_data
 from .model import AutoEncoder
 from .train import train_model
 from .evaluate import evaluate_model
+from .utils import remove_graph
 
 __all__ = [
     "load_data",
@@ -13,4 +14,5 @@ __all__ = [
     "AutoEncoder",
     "train_model",
     "evaluate_model",
+    "remove_graph"
 ]

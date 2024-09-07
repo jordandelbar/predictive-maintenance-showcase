@@ -286,7 +286,7 @@ func main() {
 	}
 
 	startTime := time.Now()
-	recordId := 1
+	recordId := 0
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
