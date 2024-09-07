@@ -60,7 +60,7 @@ We have:
 - `docs`: Documentation about the project
 - `grafana`: Dashboard definition and provisioning
 - `ml_facade`: Golang repository with code for the ML facade backend
-- `ml_model`: A Python directory to train a AutoEncoder model and wrap it as a BentoML Docker image
+- `ml_model`: A Python directory to train a AutoEncoder model and save it as a ONNX model
 - `ml_service`: Rust directory with code for the ML service backend
 - `scripts`:
   - `send_data`: A asynchronous Go script that processes the initial Kaggle dataset and sends it to either
