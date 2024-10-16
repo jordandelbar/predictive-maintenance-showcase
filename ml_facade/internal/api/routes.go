@@ -2,18 +2,14 @@ package api
 
 import (
 	"net/http"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 func (a *Server) routes() http.Handler {
-	router := httprouter.New()
-	router.NotFound = http.HandlerFunc(a.notFoundResponse)
-	router.MethodNotAllowed = http.HandlerFunc(a.methodNotAllowedResponse)
+	mux := http.NewServeMux()
 
-	router.HandlerFunc(http.MethodGet, "/health", a.healthcheckHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/predict", a.predictHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/threshold", a.thresholdHandler)
+	mux.HandleFunc("/health", a.healthcheckHandler)
+	mux.HandleFunc("/v1/predict", a.predictHandler)
+	mux.HandleFunc("/v1/threshold", a.thresholdHandler)
 
-	return a.recoverPanic(a.rateLimit(router))
+	return a.recoverPanic(a.rateLimit(mux))
 }
