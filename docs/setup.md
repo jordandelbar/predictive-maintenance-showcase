@@ -11,10 +11,10 @@ Follow the instructions below to set up your environment.
 You will find the instruction to install Go depending on your infrastructure here:
 https://go.dev/doc/install
 
-### Rye
+### Uv
 
-You will find the instruction to install Rye depending on your infrastructure here:
-https://rye.astral.sh/guide/installation/
+You will find the instruction to install uv depending on your infrastructure here:
+https://docs.astral.sh/uv/getting-started/installation/
 
 ### Rust
 
