@@ -7,7 +7,6 @@ require (
 	github.com/gomodule/redigo v1.9.2
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/jackc/pgx/v5 v5.5.4
-	github.com/julienschmidt/httprouter v1.3.0
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/testcontainers/testcontainers-go v0.32.0

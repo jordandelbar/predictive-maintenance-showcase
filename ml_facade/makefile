@@ -7,7 +7,7 @@ app/run-dev:
 	@go run ./cmd -db-host localhost -rdb-host localhost -ml-service-host localhost
 
 .PHONY: app/dev-containers
-app/run-dev-containers:
+app/dev-containers-up:
 	@docker compose up -d
 
 .PHONY: app/test

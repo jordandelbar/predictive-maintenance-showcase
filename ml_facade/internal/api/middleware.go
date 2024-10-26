@@ -36,3 +36,18 @@ func (a *Server) rateLimit(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (a *Server) methodCheck(h http.HandlerFunc, allowedMethods ...string) http.HandlerFunc {
+	allowed := make(map[string]struct{}, len(allowedMethods))
+	for _, method := range allowedMethods {
+		allowed[method] = struct{}{}
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := allowed[r.Method]; !ok {
+			a.methodNotAllowedResponse(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}
+}
