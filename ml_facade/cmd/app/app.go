@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"expvar"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"ml_facade/internal/service"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -63,6 +65,12 @@ func StartApp(cfg config.Config) {
 
 	server := api.NewApiServer(cfg, logger, mlService, &thresholdModel, version, &wg)
 	rabbitmqConsumer := consumer.NewRabbitMQConsumer(cfg.RabbitMQConsumer, logger, mlService, &wg)
+
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+
+	publishPgxPoolStats(pdb)
 
 	app := &application{
 		config:         cfg,
@@ -146,4 +154,19 @@ func redisDB(cfg config.CfgRedisDB) (*redis.Pool, error) {
 		return nil, err
 	}
 	return rdb, nil
+}
+
+func publishPgxPoolStats(pdb *pgxpool.Pool) {
+	expvar.Publish("pgxpool_stats", expvar.Func(func() any {
+		stats := pdb.Stat()
+		return map[string]interface{}{
+			"acquired_conns":     stats.AcquiredConns(),
+			"canceled_acquire":   stats.CanceledAcquireCount(),
+			"constructing_conns": stats.ConstructingConns(),
+			"idle_conns":         stats.IdleConns(),
+			"max_conns":          stats.MaxConns(),
+			"total_conns":        stats.TotalConns(),
+			"acquire_duration":   stats.AcquireDuration().Milliseconds(),
+		}
+	}))
 }
