@@ -30,10 +30,10 @@ with a Grafana dashboard for visualization.
 
 We have:
   - A backend app, coded in Go, primarily using the standard library.
-    It can act as a Http API and return `reconstruction_error` from the machine learning service.
-    The backend also listens to a RabbitMQ queue and store the data into the Postgres database.
-  - A ml service app, coded in Rust, using Axum and Ort.
-    It also acts as a Http API and compute the reconstruction error from a ONNX runtime.
+    It can act as an Http API and return `reconstruction_error` from the machine learning service.
+    The backend also listens to a RabbitMQ queue and store the data in the Postgres database.
+  - An ml service app, coded in Rust, using Axum and Ort.
+    It also acts as a Http API and computes the reconstruction error from a ONNX runtime.
   - A PostgreSQL database where the machine learning facade stores the data coming
     from the sensors and the machine learning model.
   - A Redis database used to:
@@ -51,8 +51,8 @@ We have:
 - [Axum]: Rust web application framework
 - [Ort]: ONNX runtime wrapper for Rust
 - [PostgreSQL]: Battle-tested database as the ML facade database
-- [Redis]: used as a threshold and counter in-memory database
-- [RabbitMQ]: used as a AMQP messaging server
+- [Redis]: used as an in-memory database for thresholds and counters
+- [RabbitMQ]: used as an AMQP messaging server
 - [Grafana]: used for monitoring and data visualization
 
 ## :clipboard: Project
@@ -60,10 +60,10 @@ We have:
 - `docs`: Documentation about the project
 - `grafana`: Dashboard definition and provisioning
 - `ml_facade`: Golang repository with code for the ML facade backend
-- `ml_model`: A Python directory to train a AutoEncoder model and save it as a ONNX model
+- `ml_model`: A Python directory to train an autoencoder model and save it as an ONNX model
 - `ml_service`: Rust directory with code for the ML service backend
 - `scripts`:
-  - `send_data`: A asynchronous Go script that processes the initial Kaggle dataset and sends it to either
+  - `send_data`: An asynchronous Go script that processes the initial Kaggle dataset and sends it to either
     the appropriate API route or the appropriate RabbitMQ topic
 - `templates`: .env templates for easy setup
 

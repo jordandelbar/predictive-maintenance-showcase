@@ -30,6 +30,11 @@ func (a *Server) serverErrorResponse(w http.ResponseWriter, r *http.Request, err
 	a.errorResponse(w, r, http.StatusInternalServerError, message)
 }
 
+func (a *Server) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "rate limit exceeded"
+	a.errorResponse(w, r, http.StatusTooManyRequests, message)
+}
+
 func (a *Server) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "the requested resource could not be found"
 	a.errorResponse(w, r, http.StatusNotFound, message)
@@ -38,9 +43,4 @@ func (a *Server) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 func (a *Server) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("the %s method is not supported for this ressource", r.Method)
 	a.errorResponse(w, r, http.StatusMethodNotAllowed, message)
-}
-
-func (a *Server) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	message := "rate limit exceeded"
-	a.errorResponse(w, r, http.StatusTooManyRequests, message)
 }

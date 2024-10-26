@@ -1,6 +1,8 @@
 services:
   ml-service-dev:
-    image: myapp:0.0.1
+    build:
+      context: ../ml_service
+      dockerfile: Dockerfile
     ports:
       - "7216:7216"
     environment:

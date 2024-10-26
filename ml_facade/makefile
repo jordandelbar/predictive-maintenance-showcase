@@ -6,9 +6,13 @@ app/run:
 app/run-dev:
 	@go run ./cmd -db-host localhost -rdb-host localhost -ml-service-host localhost
 
-.PHONY: app/dev-containers
-app/run-dev-containers:
+.PHONY: app/dev-containers-up
+app/dev-containers-up:
 	@docker compose up -d
+
+.PHONY: app/dev-containers-down
+app/dev-containers-down:
+	@docker compose down
 
 .PHONY: app/test
 app/test:
