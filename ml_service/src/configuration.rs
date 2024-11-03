@@ -3,6 +3,8 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone)]
 pub struct Settings {
     pub service: ServiceSettings,
+    pub model_onnx_file: String,
+    pub scaling_values_file: String
 }
 
 #[derive(Deserialize, Clone)]
