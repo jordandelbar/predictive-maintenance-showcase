@@ -74,5 +74,17 @@ services:
     networks:
       - backend
 
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./ml_facade/migrations:/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      -path /migrations -database postgres://monitor:test@postgres:5432/monitoring?sslmode=disable up
+    networks:
+      - backend
+
 networks:
   backend:
