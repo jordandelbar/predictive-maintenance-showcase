@@ -19,9 +19,9 @@ def main(epochs, version):
     logger.info(f"## Training model for {epochs} epochs ##")
 
     logger.info("## Data Cleaning & Preprocessing ##")
-    df_train = load_data("sensor.csv")
+    train_data = load_data("sensor.csv")
 
-    df_train = clean_data(data=df_train)
+    df_train = clean_data(data=train_data)
     df_train = filter_data_train(df_train)
     x_train, _ = preprocess_data(data=df_train)
 
@@ -29,10 +29,10 @@ def main(epochs, version):
     logger.info("## Model Training ##")
     model = train_model(x_train=x_train, epochs=epochs, version=version)
 
-    df_test = load_data("sensor.csv")
+    test_data = load_data("sensor.csv")
 
     logger.info("## Model Evaluation ##")
-    df_eval = clean_data(data=df_test)
+    df_eval = clean_data(data=test_data)
     x_test, _ = preprocess_data(data=df_eval)
 
     # Evaluate model

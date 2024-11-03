@@ -36,7 +36,17 @@ func toFloat(value string) float64 {
 	return 0.0
 }
 
-// sendPrediction sends the data to the prediction endpoint
+func toUnixTimestamp(timestampStr string) int64 {
+	layout := "2006-01-02 15:04:05"
+
+	t, err := time.Parse(layout, timestampStr)
+	if err != nil {
+		fmt.Println("Error parsing time:", err)
+	}
+	return t.Unix()
+}
+
+// sendPredictionAPI sends the data to the prediction endpoint
 func sendPredictionAPI(client *http.Client, data []SensorData, counter *uint64) {
 	var listData []SensorDataPayload
 	for _, sensorData := range data {
@@ -78,6 +88,7 @@ func sendPredictionAPI(client *http.Client, data []SensorData, counter *uint64) 
 	fmt.Printf("%s %d ms %d rows processed, machine statuses: %v\n", body, elapsedTime, count, machineStatuses)
 }
 
+// sendPredictionRabbit sends the data to the rabbit broker
 func sendPredictionRabbit(ch *amqp.Channel, data SensorData, counter *uint64) {
 	rabbitmqQueue := "test"
 
@@ -298,6 +309,7 @@ func main() {
 		data := SensorData{
 			SensorDataPayload: SensorDataPayload{
 				MachineID: 7,
+				CreatedAt: toUnixTimestamp(row[1]),
 				Sensor00:  toFloat(row[2]),
 				Sensor01:  toFloat(row[3]),
 				Sensor02:  toFloat(row[4]),
