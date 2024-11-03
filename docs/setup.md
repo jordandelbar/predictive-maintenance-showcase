@@ -2,7 +2,7 @@
 Welcome! To get started with our project, you need to install a couple of essential tools:
 
 - Go (version 1.22 or higher)
-- Rye (a Python package manager)
+- Uv (a Python package manager)
 
 Follow the instructions below to set up your environment.
 
@@ -39,7 +39,7 @@ export $(grep -v '^#' .env | xargs)
 ```
 ### Next steps
 
-At the root of the repository, you will find a `makefile` that assists with
+At the root of the repository, you will find a `Makefile` that assists with
 various tasks.
 
 #### Download the data
@@ -91,6 +91,9 @@ make run/send-data --rabbitmq={true/false} --requests=10
 #### Check the dashboards
 
 You can log in to [Grafana](http://localhost:9000) to check the dashboards and monitor predictions in real-time.
+```bash
+make grafana
+```
 
 <!--references-->
 [dotenv]: https://github.com/ohmyzsh/ohmyzsh/blob/master/plugins/dotenv/dotenv.plugin.zsh

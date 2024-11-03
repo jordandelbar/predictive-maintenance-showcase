@@ -31,8 +31,10 @@ type CfgPostgresDB struct {
 }
 
 type CfgRedisDB struct {
-	Host string
-	Port string
+	Host        string
+	Port        string
+	MaxIdle     int
+	IdleTimeout time.Duration
 }
 
 type CfgMlService struct {

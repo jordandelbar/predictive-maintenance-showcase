@@ -26,6 +26,8 @@ func main() {
 	flag.DurationVar(&cfg.PostgresDB.MaxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 	flag.StringVar(&cfg.RedisDB.Host, "rdb-host", os.Getenv("REDIS_DB_HOST"), "Redis Host")
 	flag.StringVar(&cfg.RedisDB.Port, "rdb-port", os.Getenv("REDIS_DB_PORT"), "Redis Port")
+	flag.IntVar(&cfg.RedisDB.MaxIdle, "rdb-max-idle", 10, "Redis max idle connections")
+	flag.DurationVar(&cfg.RedisDB.IdleTimeout, "rdb-idle-timeout", 240*time.Second, "Redis idle timeout before connection closes")
 	flag.StringVar(&cfg.MlService.Host, "ml-service-host", os.Getenv("ML_SERVICE_HOST"), "ML Service Host")
 	flag.StringVar(&cfg.MlService.Port, "ml-service-port", os.Getenv("ML_SERVICE_PORT"), "ML Service Port")
 	flag.StringVar(&cfg.RabbitMQConsumer.URI, "rabbitmq-uri", os.Getenv("RABBITMQ_URI"), "RabbitMQ URI")
