@@ -20,18 +20,18 @@ pub struct AppState {
     pub max_values: Array1<f32>,
 }
 
-pub fn create_app(_cfg: Settings) -> Result<Router, Box<dyn Error>> {
+pub fn create_app(cfg: Settings) -> Result<Router, Box<dyn Error>> {
     let num_sessions = 16;
     let sessions = (0..num_sessions)
         .map(|_| {
-            let session = Session::builder()?.commit_from_file("./models/model_0.0.1.onnx")?;
+            let session = Session::builder()?.commit_from_file(&format!("./models/{}", cfg.model_onnx_file))?;
             Ok(Arc::new(session))
         })
         .collect::<Result<Vec<_>, ort::Error>>()?;
 
     tracing::info!("created {} ONNX sessions", num_sessions);
 
-    let (min_values, max_values) = load_scaler_tensors("./preprocess/scaler_tensors.csv")?;
+    let (min_values, max_values) = load_scaler_tensors(&format!("./preprocess/{}", cfg.scaling_values_file))?;
 
     let app_state = AppState {
         sessions: Arc::new(sessions),
