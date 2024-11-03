@@ -140,8 +140,8 @@ func postgresDB(cfg config.CfgPostgresDB) (*pgxpool.Pool, error) {
 
 func redisDB(cfg config.CfgRedisDB) (*redis.Pool, error) {
 	rdb := &redis.Pool{
-		MaxIdle:     10,
-		IdleTimeout: 240 * time.Second,
+		MaxIdle:     cfg.MaxIdle,
+		IdleTimeout: cfg.IdleTimeout,
 		Dial: func() (redis.Conn, error) {
 			return redis.Dial("tcp", cfg.RedisDBDsn())
 		},
