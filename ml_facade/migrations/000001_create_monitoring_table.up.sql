@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS monitoring (
     id bigserial PRIMARY KEY,
-    created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
+    created_at timestamp(0) without time zone NOT NULL,
+    processed_at timestamp(0) without time zone NOT NULL DEFAULT NOW(),
     machine_id INTEGER,
     sensor_00 DECIMAL,
     sensor_01 DECIMAL,
