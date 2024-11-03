@@ -1,0 +1,13 @@
+[project]
+name = "train-inference-skew"
+version = "0.1.0"
+description = "Verify train inference skew"
+requires-python = ">=3.11"
+dependencies = [
+    "connectorx>=0.3.3",
+    "matplotlib>=3.9.2",
+    "polars>=1.12.0",
+    "pyarrow>=18.0.0",
+    "ruff>=0.7.2",
+    "seaborn>=0.13.2",
+]

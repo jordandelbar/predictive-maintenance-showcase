@@ -75,13 +75,27 @@ If you want to run the project, please refer to the setup instructions [here](do
 > These tests were conducted on a local machine
 > with a 13th Gen Intel® Core™ i7-1370P CPU (20 cores).
 
-### Test Details
+### Load Test Details
 
 - Dataset Size: 220,320 records (CSV file)
 - Processing Time: ~7 seconds
 - Throughput: ~31,400 records per second
 
 The performance was measured using the RabbitMQ consumer.
+
+### Training-Serving Skew
+
+Given that we are using different frameworks and languages, it is expected (though far for ideal) to observe
+a certain amount of skew when it comes to training versus serving.
+
+The differences between training and serving in absolute values are as follows:
+
+- Median of difference: 5.99e-10
+- 95th percentile: 6.23e-10
+- 99th percentile: 1.85e-09
+- 99.9th percentile: 0.0010875
+
+Any contributions to improve these indicators are more than welcome!
 
 <!--references-->
 [dataset from Kaggle]: https://www.kaggle.com/datasets/nphantawee/pump-sensor-data
