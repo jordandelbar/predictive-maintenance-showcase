@@ -12,7 +12,7 @@ services/build:
 services/up:
 	@echo "Run services"
 	@docker compose up -d
-	@cd ml_facade && make db/migrations/up && bash threshold_setup.sh
+	@cd ml_facade && bash threshold_setup.sh
 
 .PHONY: services/stop
 services/stop:
@@ -39,3 +39,7 @@ run/send-data:
 .PHONY: grafana
 grafana:
 	xdg-open http://localhost:9000
+
+.PHONY: inspect-database
+inspect-database:
+	docker exec -it monitoring-postgres psql -U monitor -d monitoring
