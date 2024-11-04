@@ -3,7 +3,7 @@ name: ML Service CI
 on:
   pull_request:
     paths:
-      - ml_model/**
+      - ml_service/**
 
 jobs:
   unit-tests:
