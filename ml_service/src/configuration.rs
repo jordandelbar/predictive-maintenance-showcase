@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::Deserialize;
+use std::path::PathBuf;
 
 #[derive(Deserialize, Clone)]
 pub struct Settings {
@@ -35,7 +35,7 @@ impl ModelSettings {
     }
 
     pub fn get_scaling_path(&self) -> PathBuf {
-       self.preprocess_dir.join(&self.scaling_values_file)
+        self.preprocess_dir.join(&self.scaling_values_file)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -43,12 +43,14 @@ impl ModelSettings {
             return Err(format!("Model file not found: {:?}", self.get_model_path()));
         }
         if !self.get_scaling_path().exists() {
-            return Err(format!("Scaling file not found: {:?}", self.get_scaling_path()));
+            return Err(format!(
+                "Scaling file not found: {:?}",
+                self.get_scaling_path()
+            ));
         }
         Ok(())
     }
 }
-
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");

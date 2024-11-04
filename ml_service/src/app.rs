@@ -10,8 +10,8 @@ use ort::Session;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::{atomic::AtomicUsize, Arc};
 use std::path::Path;
+use std::sync::{atomic::AtomicUsize, Arc};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -51,7 +51,7 @@ fn load_scaler_tensors(csv_file_path: &Path) -> Result<(Array1<f32>, Array1<f32>
     let file = File::open(csv_file_path).map_err(|e| {
         Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("Failed to open scaling file {:?}: {}", csv_file_path, e)
+            format!("Failed to open scaling file {:?}: {}", csv_file_path, e),
         ))
     })?;
 
@@ -63,28 +63,32 @@ fn load_scaler_tensors(csv_file_path: &Path) -> Result<(Array1<f32>, Array1<f32>
         let record = result.map_err(|e| {
             Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Failed to read record at line {}: {}", idx + 1, e)
+                format!("Failed to read record at line {}: {}", idx + 1, e),
             ))
         })?;
 
         if record.len() != 2 {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Invalid record at line {}: expected 2 values, got {}", idx + 1, record.len())
+                format!(
+                    "Invalid record at line {}: expected 2 values, got {}",
+                    idx + 1,
+                    record.len()
+                ),
             )));
         }
 
         min_values.push(record[0].parse::<f32>().map_err(|e| {
             Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Failed to parse min value at line {}: {}", idx + 1, e)
+                format!("Failed to parse min value at line {}: {}", idx + 1, e),
             ))
         })?);
 
         max_values.push(record[1].parse::<f32>().map_err(|e| {
             Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Failed to parse max value at line {}: {}", idx + 1, e)
+                format!("Failed to parse max value at line {}: {}", idx + 1, e),
             ))
         })?);
     }
@@ -92,7 +96,7 @@ fn load_scaler_tensors(csv_file_path: &Path) -> Result<(Array1<f32>, Array1<f32>
     if min_values.is_empty() {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Scaling file is empty"
+            "Scaling file is empty",
         )));
     }
 
