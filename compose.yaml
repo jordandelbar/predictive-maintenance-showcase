@@ -6,8 +6,11 @@ services:
       - "7216:7216"
     environment:
       APP_ENVIRONMENT: "production"
-      APP_MODEL_ONNX_FILE: "model_0.0.1.onnx"
-      APP_SCALING_VALUES_FILE: "scaler_tensors.csv"
+      APP_MODEL__ONNX_FILE: "model_0.0.1.onnx"
+      APP_MODEL__SCALING_VALUES_FILE: "scaler_tensors.csv"
+      APP_MODEL__NUM_INSTANCES: "16"
+      APP_MODEL__MODEL_DIR: "/app/models"
+      APP_MODEL__PREPROCESS_DIR: "/app/preprocess"
     networks:
       - backend
 
