@@ -1,10 +1,10 @@
+use std::path::PathBuf;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
 pub struct Settings {
     pub service: ServiceSettings,
-    pub model_onnx_file: String,
-    pub scaling_values_file: String
+    pub model: ModelSettings,
 }
 
 #[derive(Deserialize, Clone)]
@@ -12,6 +12,43 @@ pub struct ServiceSettings {
     pub host: String,
     pub port: u16,
 }
+
+#[derive(Deserialize, Clone)]
+pub struct ModelSettings {
+    pub onnx_file: String,
+    pub scaling_values_file: String,
+    #[serde(default = "default_model_instances")]
+    pub num_instances: usize,
+    pub model_dir: PathBuf,
+    pub preprocess_dir: PathBuf,
+}
+
+fn default_model_instances() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+}
+
+impl ModelSettings {
+    pub fn get_model_path(&self) -> PathBuf {
+        self.model_dir.join(&self.onnx_file)
+    }
+
+    pub fn get_scaling_path(&self) -> PathBuf {
+       self.preprocess_dir.join(&self.scaling_values_file)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.get_model_path().exists() {
+            return Err(format!("Model file not found: {:?}", self.get_model_path()));
+        }
+        if !self.get_scaling_path().exists() {
+            return Err(format!("Scaling file not found: {:?}", self.get_scaling_path()));
+        }
+        Ok(())
+    }
+}
+
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
@@ -21,13 +58,12 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT.");
-    let environment_filename = format!("{}.yaml", environment.as_str());
     let settings = config::Config::builder()
         .add_source(config::File::from(
             configuration_directory.join("base.yaml"),
         ))
         .add_source(config::File::from(
-            configuration_directory.join(environment_filename),
+            configuration_directory.join(format!("{}.yaml", environment.as_str())),
         ))
         .add_source(
             config::Environment::with_prefix("APP")
@@ -36,7 +72,13 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         )
         .build()?;
 
-    settings.try_deserialize::<Settings>()
+    let settings = settings.try_deserialize::<Settings>()?;
+    if let Err(e) = settings.model.validate() {
+        tracing::error!("Configuration validation failed: {}", e);
+        return Err(config::ConfigError::Message(e));
+    }
+
+    Ok(settings)
 }
 
 pub enum Environment {
