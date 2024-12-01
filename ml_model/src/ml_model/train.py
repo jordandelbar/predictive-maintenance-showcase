@@ -86,10 +86,11 @@ def train_model(
     # Save the model in onnx format
     dummy_input = torch.randn(1, 52)
     model_path = f"{Path(__file__).parents[3]}/ml_service/models/model_{version}.onnx"
+    autoencoder.eval()
     torch.onnx.export(
-        autoencoder,
-        dummy_input,
-        model_path,
+        model=autoencoder,
+        args=dummy_input,
+        f=model_path,
         input_names=["input"],
         output_names=["output"],
         dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},

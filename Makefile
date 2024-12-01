@@ -1,7 +1,7 @@
-.PHONY: model/build
-model/build:
+.PHONY: model/train
+model/train:
 	@echo "Build model"
-	@cd ml_model && make model/all-steps
+	@cd ml_model && make model/train
 
 .PHONY: services/build
 services/build:
@@ -43,3 +43,7 @@ grafana:
 .PHONY: inspect-database
 inspect-database:
 	docker exec -it monitoring-postgres psql -U monitor -d monitoring
+
+.PHONY: compute-train-serving-skew
+compute-train-serving-skew:
+	cd scripts/train_serving_skew && uv run python main.py

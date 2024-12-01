@@ -30,7 +30,7 @@ def main():
             right_on="created_at",
         )
         .with_columns(difference=pl.col("rce_training") - pl.col("rce_inference"))
-        .sort(by="rce_training")
+        .sort(by="difference")
     )
     print(join_df)
     mean_difference = join_df["difference"].mean()
@@ -39,6 +39,7 @@ def main():
     quantile_95 = join_df["difference"].quantile(0.95)
     quantile_99 = join_df["difference"].quantile(0.99)
     quantile_999 = join_df["difference"].quantile(0.999)
+    quantile_9999 = join_df["difference"].quantile(0.9999)
 
     print("Mean of difference:", mean_difference)
     print("Median of difference:", median_difference)
@@ -46,6 +47,7 @@ def main():
     print("95th percentile of difference:", quantile_95)
     print("99th percentile of difference:", quantile_99)
     print("99.9th percentile of difference:", quantile_999)
+    print("99.99th percentile of difference:", quantile_9999)
     plot_differences(join_df)
 
 
