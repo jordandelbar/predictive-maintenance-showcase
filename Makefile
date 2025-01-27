@@ -1,7 +1,7 @@
 .PHONY: model/build
 model/build:
 	@echo "Build model"
-	@cd ml_model && make model/all-steps
+	@cd ml_model && make model/train
 
 .PHONY: services/build
 services/build:

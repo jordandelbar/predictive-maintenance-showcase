@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"golang.org/x/time/rate"
 	"io"
 	"log"
 	"net/http"
@@ -18,6 +16,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"golang.org/x/time/rate"
 )
 
 var useRabbitmq bool
@@ -206,7 +207,7 @@ func sendBatch(
 }
 
 func main() {
-	var rps = RequestPerSecond{}
+	rps := RequestPerSecond{}
 
 	transport := &http.Transport{
 		MaxIdleConns:      100,
@@ -229,7 +230,7 @@ func main() {
 
 	// Navigate up the data directory
 	basePath := filepath.Join(cwd, "..", "..")
-	filePath := filepath.Join(basePath, "data", "sensor.csv")
+	filePath := filepath.Join(basePath, "data", "1", "sensor.csv")
 
 	csvFile, err := os.Open(filePath)
 	if err != nil {
@@ -246,7 +247,7 @@ func main() {
 	limiter := rate.NewLimiter(rate.Every(time.Second/time.Duration(rps.rate)), rps.rateBurst)
 
 	var wg sync.WaitGroup
-	var dataCh = make(chan SensorData, 100)
+	dataCh := make(chan SensorData, 100)
 	if useRabbitmq {
 		dataCh = make(chan SensorData, 800)
 	}
@@ -257,7 +258,7 @@ func main() {
 
 	batchSize := 20
 	batchTimeout := 50 * time.Millisecond
-	var numWorkers = 50
+	numWorkers := 50
 	if useRabbitmq {
 		numWorkers = 500
 	}

@@ -1,6 +1,10 @@
+import os
+import shutil
+
 from pathlib import Path
 from typing import Dict, Type, Any
 
+import kagglehub
 import polars as pl
 
 from loguru import logger
@@ -65,7 +69,8 @@ def load_data(filename: str) -> pl.DataFrame:
         "sensor_51": pl.Float64,
         "machine_status": pl.String,
     }
-    data = _load_csv(filename, schema=schema)
+    filepath = _download_dataset()
+    data = _load_csv(filepath, schema=schema)
 
     # Exclude 'index' and casting timestamp to datetime
     return data.select(pl.exclude("index")).with_columns(
@@ -74,9 +79,18 @@ def load_data(filename: str) -> pl.DataFrame:
 
 
 def _load_csv(
-    filename: str,
+    filepath: str,
     schema=Type[Dict[str | Any, Type[pl.Int64 | pl.String | pl.Float64] | Any]],
 ) -> pl.DataFrame:
-    logger.info(f"Loading data from {filename}")
-    data = pl.read_csv(f"{Path(__file__).parents[3]}/data/{filename}", schema=schema)
+    logger.info(f"Loading data from {filepath}")
+    data = pl.read_csv(filepath, schema=schema)
     return data
+
+
+def _download_dataset() -> str:
+    data_folder = str(Path(__file__).parents[3] / "data")
+    filepath = f"{data_folder}/1/sensor.csv"
+    path = kagglehub.dataset_download("nphantawee/pump-sensor-data")
+    if not os.path.exists(filepath):
+        shutil.move(path, data_folder)
+    return filepath
