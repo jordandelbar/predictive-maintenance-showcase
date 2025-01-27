@@ -21,6 +21,11 @@ https://docs.astral.sh/uv/getting-started/installation/
 You will find the instruction to install Rust here:
 https://www.rust-lang.org/tools/install
 
+### Docker
+
+You will find the instruction to install Docker here:
+https://docs.docker.com/engine/install/
+
 ### Setup environment variables
 
 In the `/templates` folder you will find the templates of the environment variables
@@ -49,10 +54,9 @@ Put it inside the `/data` directory.
 
 #### Build the Model
 
-The second step is to train the autoencoder. To do this, go to the `ml_model`
-directory and run:
+The second step is to train the autoencoder. You can run at the root directory:
 ```bash
-make model/train
+make model/build
 ```
 This command will train the model and save the artifacts in the `ml_service`
 directory.
@@ -68,7 +72,7 @@ make services/build
 
 Once everything is trained and built, you can start the services by running:
 ```bash
-make services/run
+make services/up
 ```
 
 To stop the services, run:

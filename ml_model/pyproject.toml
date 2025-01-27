@@ -9,6 +9,7 @@ authors = [
 ]
 dependencies = [
     "click>=8.1.7",
+    "kagglehub>=0.3.6",
     "loguru>=0.7.2",
     "matplotlib>=3.9.2",
     "pandas>=2.2.3",
